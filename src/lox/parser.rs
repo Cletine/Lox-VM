@@ -2,7 +2,7 @@ use crate::lox::Token;
 use crate::lox::TokenType;
 use crate::lox::Object;
 use crate::lox::Expr;
-use crate::parse_error;
+use crate::lox::Statement;
 use crate::ParserError;
 
 
@@ -20,14 +20,93 @@ pub struct LoxParser {
 
 impl LoxParser {
 
-        // Initially we will have it return the first instance of an error  and as we add expression
-        // evaluation, we will syncronize the parser to break from error and continue to parse through the
-        // errored function.
-        // TODO Assume additional functionality for the outputs of this function. i.e syncronize()
-    pub fn parse (&mut self) -> Result<Expr, ParserError>{
+    pub fn parse_expr (&mut self) -> Result<Expr, ParserError>{
         let (expr, _index) = Self::expression(&self.tokens, self.current_index);
         expr
     }
+
+    pub fn parse(&mut self) -> Vec<Statement> {
+        let mut statements = Vec::new();
+        let mut cur_index = self.current_index;
+        while cur_index < self.tokens.len() {
+            let (nx_statement, nx_index) = Self::declaration(&self.tokens, cur_index);
+            match nx_statement {
+                Ok(stmt) => {
+                    statements.push(stmt);
+                    cur_index = nx_index;
+
+                }
+                Err(e) => {
+                    e.parse_error();
+                    cur_index = Self::syncronize(&self.tokens, nx_index);
+
+                }
+            }
+        }
+        statements
+    }
+
+    fn declaration<'a> (tokens: &'a Vec<Token>, mut current: usize) -> (Result<Statement, ParserError>, usize) {
+        match tokens[current].token_type {
+            TokenType::VAR => Self::var_declaration(tokens, current + 1),
+            _ => Self::statement(tokens, current),
+        }
+    }
+
+    
+    fn var_declaration<'a> (tokens: &'a Vec<Token>, mut current: usize) -> (Result<Statement, ParserError>, usize) {
+        let mut name: Option<_> = None;
+        let mut error: Option<_> = None;
+        match tokens[current].token_type {
+            TokenType::IDENTIFIER => {
+                name = Some(tokens[current].clone()); 
+            }
+            _ => return (Err(ParserError {error_msg: "Expect variable name.".to_string(), error_token: tokens[current].clone()}), current),
+
+        }
+        current += 1;
+        let mut initializer : Expr = Expr::Literal { value : Object::NULL };
+        match tokens[current].token_type {
+            TokenType::Equal => { 
+                let (value, nx_index) = Self::expression(tokens, current);
+                match value {
+                    Ok(expr) => {
+                        initializer = expr;
+                        current = nx_index;
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                    } 
+                }
+            }
+            _ => (),
+        }
+
+        // checks if any errors were propagaeted during expression parse
+        if error != None {
+            return (Err(error.expect("Missing error propagated from expression in statement")), current)
+        }
+
+        match tokens[current].token_type {
+            TokenType::SemiColon =>   (Ok(Statement::Var{name: name.expect("Missing variable name identifier in statement"), initializer: Box::new(initializer)}), current + 1),
+            _ => (Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: tokens[current].clone()}), current),
+        }
+    }
+
+    fn statement<'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Statement, ParserError>, usize) {
+        let (value, nx_index) = Self::expression(tokens, current);
+        match tokens[nx_index].token_type {
+            TokenType::SemiColon => { 
+                match value {
+                   Ok(val) => (Ok(Statement::ExprStatement{expression: Box::new(val)}), nx_index + 1), 
+                   Err(e) => (Err(e), nx_index)
+                }
+            }
+            _ => (Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: tokens[current].clone()}), nx_index),
+        }
+    }
+
+
 
     // This function should parse through the entire expression and 
     // branch according to whether it is a sound expression or not 
@@ -89,45 +168,45 @@ impl LoxParser {
         // Determine left sided soundness of the left side of the exression
         let (left_term, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::term(tokens, current);
 
-            match left_term {
-                Ok(mut left_term) => {
-                    // Iterate through contiguous instances of the Toketype
-                    while nx_index < tokens.len() {
-                        match tokens[nx_index].token_type  {
-                            TokenType::Greater | TokenType::Less | TokenType::GreaterEqual | TokenType::LessEqual => {
-                                let operator = tokens[nx_index].clone();
-                                nx_index += 1;
-                                // Determine right sided soundness of the right side of the expression
-                                match Self::term(tokens, nx_index) {
-                                    // If both left and right are sound, return the expression
-                                    (Ok(right_term), nx) => {
-                                        nx_index = nx;
-                                        left_term = Expr::Binary{
-                                            left: Box::new(left_term),
-                                            operator: operator, 
-                                            right: Box::new(right_term),
-                                        }
-                                    }
-                                    // else return right sided parsing error
-                                    (Err(parse_error), nx) =>  { 
-                                        nx_index = nx;
-                                        parse_error_status = Some(parse_error);
-                                        break
+        match left_term {
+            Ok(mut left_term) => {
+                // Iterate through contiguous instances of the Toketype
+                while nx_index < tokens.len() {
+                    match tokens[nx_index].token_type  {
+                        TokenType::Greater | TokenType::Less | TokenType::GreaterEqual | TokenType::LessEqual => {
+                            let operator = tokens[nx_index].clone();
+                            nx_index += 1;
+                            // Determine right sided soundness of the right side of the expression
+                            match Self::term(tokens, nx_index) {
+                                // If both left and right are sound, return the expression
+                                (Ok(right_term), nx) => {
+                                    nx_index = nx;
+                                    left_term = Expr::Binary{
+                                        left: Box::new(left_term),
+                                        operator: operator, 
+                                        right: Box::new(right_term),
                                     }
                                 }
+                                // else return right sided parsing error
+                                (Err(parse_error), nx) =>  { 
+                                    nx_index = nx;
+                                    parse_error_status = Some(parse_error);
+                                    break
+                                }
                             }
-                            _ => break,
                         }
-                    }
-                    //Determines if right descent propagated any errors back.
-                    match parse_error_status {
-                        Some(parse_error) => (Err(parse_error), nx_index),
-                        None => (Ok(left_term), nx_index),
+                        _ => break,
                     }
                 }
-                // return left sided parsing propagated error 
-                Err(parse_error) => (Err(parse_error), nx_index)
+                //Determines if right descent propagated any errors back.
+                match parse_error_status {
+                    Some(parse_error) => (Err(parse_error), nx_index),
+                    None => (Ok(left_term), nx_index),
+                }
             }
+            // return left sided parsing propagated error 
+            Err(parse_error) => (Err(parse_error), nx_index)
+        }
     }
 
 
@@ -138,43 +217,43 @@ impl LoxParser {
         let (left_factor, mut nx_index) : (Result<Expr, ParserError>, usize)  = Self::factor(tokens, current);
 
         match left_factor {
-                Ok(mut left_factor) => {
-                    // Iterate through contiguous instances of the Toketype
-                    while nx_index < tokens.len() {
-                        match tokens[nx_index].token_type  {
-                            TokenType::Minus | TokenType::Plus => {
-                                let operator = tokens[nx_index].clone();
-                                nx_index += 1;
+            Ok(mut left_factor) => {
+                // Iterate through contiguous instances of the Toketype
+                while nx_index < tokens.len() {
+                    match tokens[nx_index].token_type  {
+                        TokenType::Minus | TokenType::Plus => {
+                            let operator = tokens[nx_index].clone();
+                            nx_index += 1;
 
-                                match Self::factor(tokens, nx_index) {
-                                    (Ok(right_factor), nx) => {
-                                        nx_index = nx;
-                                        left_factor = Expr::Binary{
-                                            left: Box::new(left_factor),
-                                            operator: operator, 
-                                            right: Box::new(right_factor),
-                                        };
-                                    }
-                                    // return right sided parsing error
-                                    (Err(parse_error), nx) => { 
-                                        nx_index = nx;
-                                        parse_error_status = Some(parse_error);
-                                        break
-                                    }
+                            match Self::factor(tokens, nx_index) {
+                                (Ok(right_factor), nx) => {
+                                    nx_index = nx;
+                                    left_factor = Expr::Binary{
+                                        left: Box::new(left_factor),
+                                        operator: operator, 
+                                        right: Box::new(right_factor),
+                                    };
+                                }
+                                // return right sided parsing error
+                                (Err(parse_error), nx) => { 
+                                    nx_index = nx;
+                                    parse_error_status = Some(parse_error);
+                                    break
                                 }
                             }
-                            _ => break,
                         }
+                        _ => break,
                     }
-                    //Determines if right descent propagated any errors back.
-                    match parse_error_status {
-                        Some(parse_error) => (Err(parse_error), nx_index),
-                        None => (Ok(left_factor), nx_index),
-                    }            
                 }
-                // return left sided parsing error 
-                Err(parse_error) => (Err(parse_error), nx_index)
+                //Determines if right descent propagated any errors back.
+                match parse_error_status {
+                    Some(parse_error) => (Err(parse_error), nx_index),
+                    None => (Ok(left_factor), nx_index),
+                }            
             }
+            // return left sided parsing error 
+            Err(parse_error) => (Err(parse_error), nx_index)
+        }
     }
 
 
@@ -228,24 +307,24 @@ impl LoxParser {
     fn unary <'a> (tokens: &'a Vec<Token>, mut current: usize) -> (Result<Expr, ParserError>, usize) {
         let unary: (Result<Expr, ParserError>, usize) = 
             match tokens[current].token_type  {
-            TokenType::Bang | TokenType::Minus => {
-                let operator = tokens[current].clone();
-                current += 1;
+                TokenType::Bang | TokenType::Minus => {
+                    let operator = tokens[current].clone();
+                    current += 1;
 
-                match Self::unary(tokens, current) {
-                    // If the expression is sound, return the expression
-                    (Ok(unary), cur_index)  => {
-                        (Ok(Expr::Unary {
-                            operator: operator, 
-                            right: Box::new(unary),
-                        }), cur_index)    
+                    match Self::unary(tokens, current) {
+                        // If the expression is sound, return the expression
+                        (Ok(unary), cur_index)  => {
+                            (Ok(Expr::Unary {
+                                operator: operator, 
+                                right: Box::new(unary),
+                            }), cur_index)    
+                        }
+                        // else return right sided parsing error
+                        (Err(parse_error), cur_index)  => (Err(parse_error), cur_index)
                     }
-                    // else return right sided parsing error
-                    (Err(parse_error), cur_index)  => (Err(parse_error), cur_index)
                 }
-            }
-            _ => Self::primary(tokens, current),
-        };
+                _ => Self::primary(tokens, current),
+            };
 
         return unary
     }
@@ -283,6 +362,11 @@ impl LoxParser {
                     }), current + 1 )
 
                 }
+                TokenType::IDENTIFIER => {
+                    (Ok(Expr::Variable {
+                        name: tokens[current].clone(),
+                    }), current + 1)
+                }
                 TokenType::LeftParen => {
                     current += 1;
 
@@ -307,9 +391,7 @@ impl LoxParser {
                     }
                 }
                 _ => {  
-                    // parse_error(self.tokens[self.current], "Expect expression.");
-                    //TODO some syncronizing effort or panic to evaluate the entire ast 
-                    (Err(ParserError {error_msg: "Expect expression".to_string(), error_token: tokens[current].clone()}), current + 1)
+                    (Err(ParserError {error_msg: "Expect expression".to_string(), error_token: tokens[current].clone()}), current)
                 }
             };
 
@@ -317,16 +399,16 @@ impl LoxParser {
     }
 
 
-    fn syncronize(&mut self) -> () {
+    fn syncronize<'a> (tokens: &'a Vec<Token>, mut current: usize) -> usize {
         // move off the current error throwing token
-        self.current_index += 1;
+        current += 1;
 
-        while !self.is_at_end() {
+        while current < tokens.len() {
             // checks if previous token was a statement terminator ';'
-            if self.tokens[self.current_index - 1].token_type == TokenType::SemiColon {
+            if tokens[current].token_type == TokenType::SemiColon {
                 break
             }
-            match self.tokens[self.current_index].token_type {
+            match tokens[current].token_type {
                 TokenType::CLASS |
                     TokenType::FUN |
                     TokenType::FOR |
@@ -335,9 +417,11 @@ impl LoxParser {
                     TokenType::PRINT |
                     TokenType::RETURN |
                     TokenType::VAR => break,
-                _ => self.current_index += 1,
+                _ => current += 1,
             }
         }
+
+        current
     }
 
     fn is_at_end(&self) -> bool {

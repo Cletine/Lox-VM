@@ -4,19 +4,40 @@ use crate::lox::Object;
 
 #[derive (Debug, PartialEq, Clone)]
 pub enum Expr {
-	Binary {
-    left: Box<Expr>,
-    operator: Token,
-    right: Box<Expr>,
+    Assign {
+        name: Token,
+        value: Box<Expr>,
     },
-	Grouping {
-    expression: Box<Expr>,
+    Binary {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
     },
-	Literal {
-    value: Object,
+    Grouping {
+        expression: Box<Expr>,
     },
-	Unary {
-    operator: Token,
-    right: Box<Expr>,
+    Literal {
+        value: Object,
+    },
+    Unary {
+        operator: Token,
+        right: Box<Expr>,
+    },
+    Variable {
+        name: Token,
     },
 }
+
+
+#[derive (Debug, PartialEq, Clone)]
+pub enum Statement{
+    ExprStatement {
+        expression: Box<Expr>,
+    },
+    Var {
+        name: Token,
+        initializer: Box<Expr>,
+    },
+}
+
+
