@@ -13,20 +13,21 @@ pub struct ParserError {
     error_token: Token,
 }
 
+impl ParserError  { 
+    pub fn parse_error(&self) {
+        if self.error_token.token_type == TokenType::EOF {
+            report(self.error_token.line, "at end", &self.error_msg)
+        }
+        else {
+            report(self.error_token.line, format!("at '{}'", self.error_token.lexeme).as_str(), &self.error_msg);
+        }
+    }
+}
 
 
 pub fn scan_error (line:usize, ch:String, message: &str) {
     report(line, format!("at '{}'", ch).as_str(), message);
     process::exit(1)
-}
-
-pub fn parse_error(token : Token, message: String) {
-    if token.token_type == TokenType::EOF {
-        report(token.line, "at end", &message)
-    }
-    else {
-        report(token.line, format!("at '{}'", token.lexeme).as_str(), &message);
-    }
 }
 
 fn report (line:usize, where_at:&str, message:&str) {

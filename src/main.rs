@@ -35,7 +35,7 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
         tokens: scanner.tokens, current_index: 0 
     };
 
-    let result_expr = parser.parse();
+    let result_expr = parser.parse_expr();
     match result_expr {
         Ok(expr) => print_ast(&expr),
         _ => (),
