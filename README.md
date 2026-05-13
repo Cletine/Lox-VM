@@ -1,6 +1,6 @@
-#  Lox Interpreter — Rust
+#  Lox Programming Language — Rust
 
-> A fully-featured interpreter for the **Lox** programming language, built from scratch in Rust.
+> A fully-featured bytecode VM for the **Lox** programming language, built from scratch in Rust.
 > Inspired by Robert Nystrom's [*Crafting Interpreters*](https://craftinginterpreters.com/).
 
 [![Rust](https://img.shields.io/badge/Rust-1.78%2B-orange?logo=rust)](https://www.rust-lang.org/)
@@ -10,7 +10,7 @@
 
 ##  Overview
 
-This project is a handcrafted implementation of the **Lox** scripting language interpreter in Rust. Lox is a dynamically-typed, object-oriented language designed by Robert Nystrom as a teaching vehicle for interpreter design. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, and interpreter — all written in idiomatic Rust.
+This project is a handcrafted implementation of the **Lox** scripting language interpreter in Rust. Lox is a dynamically-typed, object-oriented language designed by Robert Nystrom as a teaching vehicle for interpreter design. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, Optimized Bytecode,  — all written in idiomatic Rust.
 
 ---
 
@@ -31,13 +31,16 @@ Source Code (.lox)
         │
         ▼
  ┌──────────────┐
- │  AST Printer │  → Pretty-prints AST for debugging & visualization
+ │  Compiler    │  → Translates AST source to LLVM IR Code 
  └──────┬───────┘
         │
         ▼
  ┌──────────────┐
- │  Interpreter │  → Tree-walk evaluator; executes the AST directly
+ │  Bytecode VM │  → Stack-based execution engine; processes Bytecode
  └──────────────┘
+        │
+        ▼
+Targeted Binary 
 ```
 
 ---
@@ -50,7 +53,6 @@ Source Code (.lox)
 - Identifier and reserved keyword recognition
 - Robust UTF-8 character processing
 - Meaningful lexer-level error messages with line context
-- Comprehensive test suite for the scanner
 
 ### Parser
 - Recursive descent parser for Lox grammar
@@ -58,17 +60,6 @@ Source Code (.lox)
 - Structured error handling and panic-mode recovery
 - Generates a complete, well-formed Abstract Syntax Tree (AST)
 
-### AST Printer
-- Lisp-style parenthesized AST pretty-printer for debugging
-- Full AST evaluation implementation
-- Auto-generated AST boilerplate via custom utility tooling
-
-### Evaluator / Interpreter
-- Tree-walk interpreter over the AST
-- Multiple object/value representations: `Number`, `String`, `Boolean`, `Nil`
-- Runtime error handling with descriptive messages
-
----
 
 ## Roadmap
 
@@ -84,7 +75,7 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Control Flow (`if`, `while`, `for`) | 🔜 Planned |
 | Functions & Closures | 🔜 Planned |
 | Classes & Inheritance | 🔜 Planned |
-| Bytecode VM (Part II) | 🔜 Planned |
+| Bytecode VM | 🔜 Planned |
 
 ---
 
@@ -107,7 +98,7 @@ cargo build --release
 
 ```bash
 # Run a .lox source file
-cargo run --bin lox_interpreter -- /path/to/your/script.lox
+cargo run --bin lox_interpreter -- /path/to/your/src.lox
 
 ```
 
@@ -145,10 +136,8 @@ if (a < b) {
 ##  Design Decisions
 
 **Why Rust?**
-Rust's ownership model makes it exceptionally well-suited for interpreter development. Memory safety is guaranteed at compile time, and the type system enforces correctness across complex recursive data structures like ASTs — without a garbage collector.
+Rust's ownership model makes it exceptionally well-suited for compiler toolchain development. Memory safety is guaranteed at compile time, and the type system enforces correctness across complex recursive data structures like ASTs — without a garbage collector. Rust also allows for functional programming features such as Algebraic Data Types with Structs and Enums as well as powerful pattern matching which makes the construction of complex intermediary types simpler to implement and allows for simpler data decomposition with specificity to shape. This allows for the Compiler Frontend to have a rudimentary (and hopefully intuitive) implementation.
 
-**Why Tree-Walk First?**
-Following Nystrom's approach, the tree-walk interpreter provides a clean mental model for language semantics before optimizing with a bytecode VM in Phase 2.
 
 ---
 
@@ -157,6 +146,7 @@ Following Nystrom's approach, the tree-walk interpreter provides a clean mental 
 -  [*Crafting Interpreters* by Robert Nystrom](https://craftinginterpreters.com/) — the definitive guide this project is based on
 -  [The Rust Programming Language](https://doc.rust-lang.org/book/)
 -  [Rust Reference](https://doc.rust-lang.org/reference/)
+-  [My First Language Frontend with LLVM Tutorial](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html)
 
 ---
 
