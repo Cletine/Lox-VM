@@ -1,7 +1,4 @@
 use crate::lox::Expr;
-use crate::lox::Object;
-use crate::lox::Token;
-use crate::lox::TokenType;
 
 
 pub fn print_ast(expr: &Expr) {
@@ -26,6 +23,13 @@ fn evaluate_ast (expr: &Expr) -> String {
         }
         Expr::Literal{value} => {
             format!("{}", value.object_to_string())
+        }
+        Expr::Variable{name}=> {
+            format!("(var {};\n)", name.lexeme)
+        }
+        Expr::Assign{name, value}=> {
+            let rhs = evaluate_ast(value);
+            format!("(var {} = {};\n)", name.lexeme, rhs)
         }
     }
 }
