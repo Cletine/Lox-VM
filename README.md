@@ -10,7 +10,7 @@
 
 ##  Overview
 
-This project is a handcrafted implementation of the **Lox** scripting language interpreter in Rust. Lox is a dynamically-typed, object-oriented language designed by Robert Nystrom as a teaching vehicle for interpreter design. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, Optimized Bytecode,  — all written in idiomatic Rust.
+This project is a handcrafted implementation of the **Lox** scripting language in Rust. Lox is a dynamically-typed, object-oriented language designed by Robert Nystrom that with the LLVM project reference, acts as a teaching vehicle for programming language/Virtual Machine design. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, Optimized Bytecode.
 
 ---
 
@@ -70,7 +70,7 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Scanner | ✅ Complete |
 | Expression Parser | ✅ Complete |
 | AST Evaluation | ✅ Complete |
-| Statement Parser (`print`, `var`, blocks) | 🔄 In Progress |
+| Statement Parser (`var`, blocks) | ✅ Complete |
 | Variables & Environments | 🔜 Planned |
 | Control Flow (`if`, `while`, `for`) | 🔜 Planned |
 | Functions & Closures | 🔜 Planned |
