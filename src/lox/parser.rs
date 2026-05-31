@@ -22,96 +22,173 @@ impl LoxParser {
 
     pub fn parse_expr (&mut self) -> Result<Expr, ParserError>{
         let (expr, _index) = Self::expression(&self.tokens, self.current_index);
-        expr
+        return expr
     }
 
     pub fn parse(&mut self) -> Vec<Statement> {
         let mut statements = Vec::new();
-        let mut cur_index = self.current_index;
-        while cur_index < self.tokens.len() {
-            let (nx_statement, nx_index) = Self::declaration(&self.tokens, cur_index);
+        while self.current_index < self.tokens.len() {
+            let nx_statement = self.declaration();
             match nx_statement {
                 Ok(stmt) => {
                     statements.push(stmt);
-                    cur_index = nx_index;
-
                 }
                 Err(e) => {
                     e.parse_error();
-                    cur_index = Self::syncronize(&self.tokens, nx_index);
+                    self.current_index = Self::syncronize(&self.tokens, self.current_index);
 
                 }
-            }
+            };
         }
         statements
     }
 
-    fn declaration<'a> (tokens: &'a Vec<Token>, mut current: usize) -> (Result<Statement, ParserError>, usize) {
-        match tokens[current].token_type {
-            TokenType::VAR => Self::var_declaration(tokens, current + 1),
-            _ => Self::statement(tokens, current),
+    fn declaration<'a> (&mut self) -> Result<Statement, ParserError> {
+        match self.tokens[self.current_index].token_type {
+            TokenType::VAR => return self.var_declaration(),
+            _ => return self.statement(),
         }
     }
 
     
-    fn var_declaration<'a> (tokens: &'a Vec<Token>, mut current: usize) -> (Result<Statement, ParserError>, usize) {
+    fn var_declaration<'a> (&mut self) -> Result<Statement, ParserError> {
         let mut name: Option<_> = None;
         let mut error: Option<_> = None;
-        match tokens[current].token_type {
+
+        match self.tokens[self.current_index].token_type {
             TokenType::IDENTIFIER => {
-                name = Some(tokens[current].clone()); 
+                name = Some(self.tokens[self.current_index].clone()); 
             }
-            _ => return (Err(ParserError {error_msg: "Expect variable name.".to_string(), error_token: tokens[current].clone()}), current),
+            _ => return Err(ParserError {error_msg: "Expect variable name.".to_string(), error_token: self.tokens[self.current_index].clone()})
 
         }
-        current += 1;
+
+        self.current_index += 1;
         let mut initializer : Expr = Expr::Literal { value : Object::NULL };
-        match tokens[current].token_type {
+
+        match self.tokens[self.current_index].token_type {
             TokenType::Equal => { 
-                let (value, nx_index) = Self::expression(tokens, current);
+                let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
+                self.current_index = nx_index;
                 match value {
                     Ok(expr) => {
                         initializer = expr;
-                        current = nx_index;
                     }
                     Err(e) => {
                         error = Some(e);
                     } 
-                }
+                };
             }
             _ => (),
         }
 
+
         // checks if any errors were propagaeted during expression parse
         if error != None {
-            return (Err(error.expect("Missing error propagated from expression in statement")), current)
+            return Err(error.expect("Missing error propagated from expression in statement"))
         }
 
-        match tokens[current].token_type {
-            TokenType::SemiColon =>   (Ok(Statement::Var{name: name.expect("Missing variable name identifier in statement"), initializer: Box::new(initializer)}), current + 1),
-            _ => (Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: tokens[current].clone()}), current),
+        match self.tokens[self.current_index].token_type {
+            TokenType::SemiColon =>  { 
+                self.current_index += 1;
+                Ok(Statement::Var{name: name.expect("Missing variable name identifier in statement"), initializer: Box::new(initializer)})
+            }
+            _ => Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
     }
 
-    fn statement<'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Statement, ParserError>, usize) {
-        let (value, nx_index) = Self::expression(tokens, current);
-        match tokens[nx_index].token_type {
+    fn statement<'a> (&mut self) ->  Result<Statement, ParserError> {
+        // Determines if the statement/s are blocked in a higher order block scope
+        if self.tokens[self.current_index].token_type == TokenType::LeftBrace {
+                let block_statements = self.block();
+                match block_statements{
+                    Ok(block_stmt) =>  { 
+                        self.current_index += 1;
+                        return Ok(block_stmt)
+                    }
+                    Err(e) => return Err(e)
+                }
+        }
+
+        let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
+        self.current_index = nx_index;
+        match self.tokens[self.current_index].token_type {
             TokenType::SemiColon => { 
                 match value {
-                   Ok(val) => (Ok(Statement::ExprStatement{expression: Box::new(val)}), nx_index + 1), 
-                   Err(e) => (Err(e), nx_index)
+                   Ok(val) => {
+                       self.current_index += 1;
+                       return Ok(Statement::ExprStatement{expression: Box::new(val)}) 
+                   }
+                   Err(e) => return Err(e),
                 }
-            }
-            _ => (Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: tokens[current].clone()}), nx_index),
+           }
+            _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
         }
     }
+
+
+    fn block<'a> (&mut self) -> Result<Statement, ParserError> {
+        let mut block_statements = Vec::new();
+
+        // loop through till a right brace/ End of Block
+        while self.current_index < self.tokens.len() {
+            match self.tokens[self.current_index].token_type {
+                TokenType::RightBrace => break, 
+                _ => {
+                    let nx_statement = self.declaration();
+                    match nx_statement {
+                        Ok(stmt) => {
+                            block_statements.push(Box::new(stmt));
+                        }
+                        Err(e) => {
+                            e.parse_error();
+                            self.current_index = Self::syncronize(&self.tokens, self.current_index);
+                        }
+                    }
+                }
+            };
+        }
+
+        match self.tokens[self.current_index].token_type {
+            TokenType::SemiColon =>  { 
+                    self.current_index += 1;
+                    return Ok(Statement::Block {statements: block_statements})
+                 }
+            _ => return Err(ParserError {error_msg: "Expect '}' After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
+        }
+    }
+
 
 
 
     // This function should parse through the entire expression and 
     // branch according to whether it is a sound expression or not 
-    fn expression <'a> (tokens: &'a Vec<Token>, current_index: usize) -> (Result<Expr, ParserError>, usize) {
-        Self::equality(tokens, current_index)
+    fn expression <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
+        Self::assignment(tokens, current)
+    }
+
+    fn assignment <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
+        match tokens[current].token_type {
+            TokenType::IDENTIFIER => {
+                if current + 1 < tokens.len() && tokens[current + 1].token_type == TokenType::Equal {
+                    let (result, nx_index) = Self::expression(tokens, current + 2);
+                    match result {
+                        Ok(expr) => {
+                            return (Ok(Expr::Assign {name: tokens[current].clone(), value: Box::new(expr)}), nx_index)
+                        }
+                        Err(e) => {
+                            return (Err(e), nx_index)
+                        }
+                    }
+                } else {
+                    return (Err(ParserError {error_msg: "Expect '=' after variable name.".to_string(), error_token: tokens[current].clone()}), current)
+                }
+            }
+            _ => {
+                let (result, nx_index) = Self::equality(tokens, current);
+                return (result, nx_index)
+            }
+        }
     }
 
     fn equality <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
@@ -406,6 +483,9 @@ impl LoxParser {
         while current < tokens.len() {
             // checks if previous token was a statement terminator ';'
             if tokens[current].token_type == TokenType::SemiColon {
+                break
+            }
+            if tokens[current].token_type == TokenType::RightBrace {
                 break
             }
             match tokens[current].token_type {
