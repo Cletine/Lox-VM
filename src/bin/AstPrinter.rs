@@ -39,5 +39,12 @@ fn evaluate_ast (expr: &Expr) -> String {
         Expr::Literal{value} => {
             format!("{}", value.object_to_string())
         }
+        Expr::Assign{name, value} => {
+            let right_val = evaluate_ast(value);
+            format!("({} {})", name.lexeme, right_val)
+        }
+        Expr::Variable{name} => {
+            format!("({})", name.lexeme)
+        }
     }
 }
