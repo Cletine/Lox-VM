@@ -289,6 +289,8 @@ fn equal_comp() {
                                             right:  Box::new(Expr::Literal {value: Object::NUMBER(2.0), }),}),);
 }
 
+
+
 #[test]
 fn not_equal_comp() {
     let test_tokens = vec![Token { token_type: TokenType::NUMBER, lexeme: "1".to_string(), literal: Object::NUMBER(1.0), line: 1 }, 
@@ -304,5 +306,112 @@ fn not_equal_comp() {
                                             operator: Token { token_type: TokenType::BangEqual, lexeme: "!=".to_string(), literal: Object::NULL, line: 1 },
                                             right:  Box::new(Expr::Literal {value: Object::NUMBER(2.0), }),}),);
 }
+
+
+#[test]
+fn var_assign() {
+    let test_tokens = vec![Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::Equal, lexeme: "=".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::STRING, lexeme: "espresso".to_string(), literal: Object::STRING("espresso".to_string()), line: 1},
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0 
+    };
+
+    assert_eq!(parser.parse_expr(), Ok(Expr::Assign {
+                                            name: Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 },
+                                            value: Box::new(Expr::Literal {value: Object::STRING("espresso".to_string()), }),}));
+}
+
+
+
+#[test]
+fn var_declaration() {
+    let test_tokens = vec![Token { token_type: TokenType::VAR, lexeme: "var".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::Equal, lexeme: "=".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::STRING, lexeme: "espresso".to_string(), literal: Object::STRING("espresso".to_string()), line: 1},
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0 
+    };
+
+    assert_eq!(parser.parse()[0], Statement::Var {
+                                            name: Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 },
+                                            initializer: Box::new(Expr::Literal {value: Object::STRING("espresso".to_string()), }),});
+}
+
+
+#[test]
+fn null_var_declaration() {
+    let test_tokens = vec![Token { token_type: TokenType::VAR, lexeme: "var".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0 
+    };
+
+    assert_eq!(parser.parse()[0], Statement::Var {
+                                            name: Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 },
+                                            initializer: Box::new(Expr::Literal {value: Object::NULL, }),});
+}
+
+
+#[test]
+fn expression_statements() {
+    let test_tokens = vec![Token { token_type: TokenType::Minus, lexeme: "-".to_string(), literal: Object::NULL, line: 1 },
+                           Token { token_type: TokenType::NUMBER, lexeme: "1".to_string(), literal: Object::NUMBER(1.0), line: 1 }, 
+                           Token { token_type: TokenType::Plus, lexeme: "+".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::Minus, lexeme: "-".to_string(), literal: Object::NULL, line: 1 },
+                           Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0 
+    };
+
+    assert_eq!(parser.parse()[0], Statement::ExprStatement {
+                                    expression: Box::new(Expr::Binary{
+                                        left: Box::new(Expr::Unary{operator: Token { token_type: TokenType::Minus, lexeme: "-".to_string(), literal: Object::NULL, line: 1 }, 
+                                            right: Box::new(Expr::Literal {value: Object::NUMBER(1.0), }),}),
+                                            operator: Token { token_type: TokenType::Plus, lexeme: "+".to_string(), literal: Object::NULL, line: 1 },
+                                            right: Box::new(Expr::Unary{operator: Token { token_type: TokenType::Minus, lexeme: "-".to_string(), literal: Object::NULL, line: 1 }, 
+                                                right: Box::new(Expr::Literal {value: Object::NUMBER(2.0), }),}),}),});
+}
+
+#[test]
+fn blocking_statements() {
+    let test_tokens = vec![Token { token_type: TokenType::VAR, lexeme: "var".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::Equal, lexeme: "=".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::STRING, lexeme: "espresso".to_string(), literal: Object::STRING("espresso".to_string()), line: 1},
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::LeftBrace, lexeme: "{".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::VAR, lexeme: "var".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::Equal, lexeme: "=".to_string(), literal: Object::NULL, line: 1 }, 
+                           Token { token_type: TokenType::STRING, lexeme: "lemonade".to_string(), literal: Object::STRING("espresso".to_string()), line: 1},
+                           Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::RightBrace, lexeme: "}".to_string(), literal: Object::NULL, line: 1},
+                           Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0 
+    };
+
+    let statements = parser.parse();
+    assert_eq!(statements[0], Statement::Var {
+                                            name: Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 },
+                                            initializer: Box::new(Expr::Literal {value: Object::STRING("espresso".to_string()), }),});
+
+    assert_eq!(statements[1], Statement::Block{
+                                    statements: vec![Box::new(Statement::Var {
+                                                            name: Token { token_type: TokenType::IDENTIFIER, lexeme: "beverage".to_string(), literal: Object::NULL, line: 1 },
+                                                            initializer: Box::new(Expr::Literal {value: Object::STRING("espresso".to_string()), }),})],});
+}
+
+
 
 
