@@ -50,13 +50,11 @@ Targeted Binary
 ### Lexer / Scanner
 - Full tokenization of Lox source files
 - Handles all literal types: numbers, strings, booleans, `nil`
-- Identifier and reserved keyword recognition
 - Robust UTF-8 character processing
 - Meaningful lexer-level error messages with line context
 
 ### Parser
 - Recursive descent parser for Lox grammar
-- Full expression parsing (arithmetic, comparison, logical, grouping)
 - Structured error handling and panic-mode recovery
 - Generates a complete, well-formed Abstract Syntax Tree (AST)
 
