@@ -45,7 +45,10 @@ impl LoxParser {
 
     fn declaration<'a> (&mut self) -> Result<Statement, ParserError> {
         match self.tokens[self.current_index].token_type {
-            TokenType::VAR => return self.var_declaration(),
+            TokenType::VAR =>  {
+                self.current_index +=1;
+                return self.var_declaration()
+            }
             _ => return self.statement(),
         }
     }
@@ -68,6 +71,7 @@ impl LoxParser {
 
         match self.tokens[self.current_index].token_type {
             TokenType::Equal => { 
+                self.current_index += 1;
                 let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
                 self.current_index = nx_index;
                 match value {
@@ -100,14 +104,9 @@ impl LoxParser {
     fn statement<'a> (&mut self) ->  Result<Statement, ParserError> {
         // Determines if the statement/s are blocked in a higher order block scope
         if self.tokens[self.current_index].token_type == TokenType::LeftBrace {
-                let block_statements = self.block();
-                match block_statements{
-                    Ok(block_stmt) =>  { 
-                        self.current_index += 1;
-                        return Ok(block_stmt)
-                    }
-                    Err(e) => return Err(e)
-                }
+            //move off/consume  left brace
+                self.current_index += 1;
+               return self.block()
         }
 
         let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
@@ -129,7 +128,6 @@ impl LoxParser {
 
     fn block<'a> (&mut self) -> Result<Statement, ParserError> {
         let mut block_statements = Vec::new();
-
         // loop through till a right brace/ End of Block
         while self.current_index < self.tokens.len() {
             match self.tokens[self.current_index].token_type {
@@ -150,7 +148,7 @@ impl LoxParser {
         }
 
         match self.tokens[self.current_index].token_type {
-            TokenType::SemiColon =>  { 
+            TokenType::RightBrace=>  { 
                     self.current_index += 1;
                     return Ok(Statement::Block {statements: block_statements})
                  }
@@ -168,25 +166,28 @@ impl LoxParser {
     }
 
     fn assignment <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
-        match tokens[current].token_type {
-            TokenType::IDENTIFIER => {
-                if current + 1 < tokens.len() && tokens[current + 1].token_type == TokenType::Equal {
-                    let (result, nx_index) = Self::expression(tokens, current + 2);
-                    match result {
-                        Ok(expr) => {
-                            return (Ok(Expr::Assign {name: tokens[current].clone(), value: Box::new(expr)}), nx_index)
-                        }
-                        Err(e) => {
-                            return (Err(e), nx_index)
+        let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::equality(tokens, current);
+
+        match tokens[nx_index].token_type {
+            TokenType::Equal=> {
+                let (result, nx_index) = Self::assignment(tokens, nx_index + 1);
+                match result {
+                    Ok(right_expr) => {
+                        match left_expr {
+                            Ok(Expr::Variable {name: n,}) => (Ok(Expr::Assign {name: n, value: Box::new(right_expr)}), nx_index),
+                            _ => {
+                                    ParserError {error_msg: "Invalid assignment type".to_string(), error_token: tokens[nx_index - 1].clone() }.parse_error();
+                                    return (left_expr, nx_index)
+                            }
                         }
                     }
-                } else {
-                    return (Err(ParserError {error_msg: "Expect '=' after variable name.".to_string(), error_token: tokens[current].clone()}), current)
+                    Err(e) => {
+                        return (Err(e), nx_index)
+                    }
                 }
             }
             _ => {
-                let (result, nx_index) = Self::equality(tokens, current);
-                return (result, nx_index)
+                return (left_expr, nx_index)
             }
         }
     }
