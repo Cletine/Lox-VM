@@ -102,26 +102,37 @@ impl LoxParser {
     }
 
     fn statement<'a> (&mut self) ->  Result<Statement, ParserError> {
-        // Determines if the statement/s are blocked in a higher order block scope
-        if self.tokens[self.current_index].token_type == TokenType::LeftBrace {
-            //move off/consume  left brace
-                self.current_index += 1;
-               return self.block()
-        }
-
-        let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
-        self.current_index = nx_index;
         match self.tokens[self.current_index].token_type {
-            TokenType::SemiColon => { 
-                match value {
-                   Ok(val) => {
-                       self.current_index += 1;
-                       return Ok(Statement::ExprStatement{expression: Box::new(val)}) 
-                   }
-                   Err(e) => return Err(e),
+            // Blocking Statement/s
+            TokenType::LeftBrace  =>{
+                //move off/consume  left brace
+                self.current_index += 1;
+                return self.block()
+            }
+            // If Statements
+            TokenType::IF =>{
+                self.current_index += 1;
+                return self.if_statement();
+            }
+
+            // Expr Statement
+            _ => {
+
+                let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
+                self.current_index = nx_index;
+                match self.tokens[self.current_index].token_type {
+                    TokenType::SemiColon => { 
+                        match value {
+                            Ok(val) => {
+                                self.current_index += 1;
+                                return Ok(Statement::ExprStatement{expression: Box::new(val)}) 
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
+                    _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
                 }
-           }
-            _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
+            }
         }
     }
 
@@ -158,6 +169,54 @@ impl LoxParser {
 
 
 
+    fn if_statement<'a> (&mut self) -> Result<Statement, ParserError> {
+        // if
+        match self.tokens[self.current_index].token_type {
+            // (condition)
+            TokenType::LeftParen => {
+                let (condition, nx_index) = Self::expression(&self.tokens, self.current_index);
+                self.current_index = nx_index;
+                match condition {
+                    Ok(cond) => {
+                        match self.tokens[self.current_index].token_type {
+                            TokenType::RightParen => {
+                                self.current_index += 1;
+                                let thenBranch = self.statement();
+                                // then [statement]
+                                match thenBranch {
+                                    Ok(thenBr) => {
+                                        let mut elseBranch = None;
+                                        //else [statement]
+                                        if self.tokens[self.current_index].token_type == TokenType::ELSE {
+                                            self.current_index += 1;
+                                            elseBranch = Some(self.statement());
+                                            
+                                        }
+                                        match elseBranch {
+                                            // if (condition) then [statement] else [statement]
+                                            Some(Ok(elseBr)) => return Ok(Statement::IfStatement {condition: Box::new(cond), thenBranch: Box::new(thenBr), elseBranch: Box::new(Some(elseBr))}),
+                                            // if (condition) then [statement] 
+                                            None => return Ok(Statement::IfStatement {condition: Box::new(cond), thenBranch: Box::new(thenBr), elseBranch: Box::new(None)}),
+                                            // Error Propagated from elseBranch
+                                            Some(Err(e)) => return Err(e)
+                                        }
+                                    }
+
+                                    Err(e) => return Err(e)
+                                }
+                            }
+                            _ => return Err(ParserError {error_msg: "Expect ')' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                        }
+                    }
+                    Err(e) => return Err(e)
+                }
+            },
+
+            _ => return Err(ParserError {error_msg: "Expect '(' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+
+        }
+    }
+
 
     // This function should parse through the entire expression and 
     // branch according to whether it is a sound expression or not 
@@ -166,7 +225,7 @@ impl LoxParser {
     }
 
     fn assignment <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
-        let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::equality(tokens, current);
+        let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::or(tokens, current);
 
         match tokens[nx_index].token_type {
             TokenType::Equal=> {
@@ -192,11 +251,106 @@ impl LoxParser {
         }
     }
 
+
+    fn or<'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
+        let mut parse_error_status: Option<_> = None;
+        let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::and(tokens, current);
+        match left_expr {
+            Ok(mut left_expr) => {
+
+                while nx_index < tokens.len(){
+                    match tokens[nx_index].token_type  {
+                        TokenType::OR =>
+                        {
+                            let operator = tokens[nx_index].clone();
+                            nx_index += 1;
+                            // Determine right sided soundness of the right side of the expression
+                            match Self::and(tokens, nx_index) {
+                                // If both left and right are sound, update the index and add to the
+                                // expression stack
+                                (Ok(right_expr), nx) => {
+                                    nx_index = nx;
+                                    left_expr = Expr::Logical{
+                                        left: Box::new(left_expr),
+                                        operator: operator, 
+                                        right: Box::new(right_expr),
+                                    };
+                                }
+                                // else return right sided parsing error
+                                (Err(parse_error), nx) => { 
+                                    nx_index = nx;
+                                    parse_error_status = Some(parse_error);
+                                    break
+                                },
+                            };
+                        }
+                        _ => break,
+                    }
+                }
+                //Determines if any errors propagated back.
+                match parse_error_status {
+                    Some (parse_error) => (Err(parse_error), nx_index) ,
+                    None => (Ok(left_expr), nx_index),
+                }
+
+            }
+            // else return left sided parsing error 
+            Err(parse_error) => (Err(parse_error), nx_index),
+        }
+    }
+
+    fn and<'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
+        let mut parse_error_status: Option<_> = None;
+        let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::equality(tokens, current);
+        match left_expr {
+            Ok(mut left_expr) => {
+
+                while nx_index < tokens.len(){
+                    match tokens[nx_index].token_type  {
+                        TokenType::OR =>
+                        {
+                            let operator = tokens[nx_index].clone();
+                            nx_index += 1;
+                            // Determine right sided soundness of the right side of the expression
+                            match Self::and(tokens, nx_index) {
+                                // If both left and right are sound, update the index and add to the
+                                // expression stack
+                                (Ok(right_expr), nx) => {
+                                    nx_index = nx;
+                                    left_expr = Expr::Logical{
+                                        left: Box::new(left_expr),
+                                        operator: operator, 
+                                        right: Box::new(right_expr),
+                                    };
+                                }
+                                // else return right sided parsing error
+                                (Err(parse_error), nx) => { 
+                                    nx_index = nx;
+                                    parse_error_status = Some(parse_error);
+                                    break
+                                },
+                            };
+                        }
+                        _ => break,
+                    }
+                }
+                //Determines if any errors propagated back.
+                match parse_error_status {
+                    Some (parse_error) => (Err(parse_error), nx_index) ,
+                    None => (Ok(left_expr), nx_index),
+                }
+
+            }
+            // else return left sided parsing error 
+            Err(parse_error) => (Err(parse_error), nx_index),
+        }
+    }
+
+
     fn equality <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
         let mut parse_error_status: Option<_> = None;
         // Determine left sided soundness of the left side of the exression
         let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::comparision(tokens, current);
-
         match left_expr {
             Ok(mut left_expr) => {
                 while nx_index < tokens.len(){
