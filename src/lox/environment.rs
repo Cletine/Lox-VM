@@ -33,7 +33,7 @@ impl<'ctx> Environmnet <'ctx> {
             self.scopes.pop();
         }
         else {
-            panic!("Cannot pop global scopes.");
+            panic!("Internal Compiler Error: Mismatched scope lifecycle tracking.");
         }
     }
 
@@ -51,6 +51,16 @@ impl<'ctx> Environmnet <'ctx> {
             }
         }
         None
+    }
+
+    pub fn assign(&self, name: Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum, is_mutable: bool) {
+        let info = VariableInfo {pointer: pointer, ty:ty, is_mutable:is_mutable};
+        for current_scope in self.scopes.iter().rev() {
+            if current_scope.contains_key(name) {
+                return current_scope.insert(name, info);
+            }
+        }
+        panic!("Internal Compiler Error: Undefined Variable '{}'", name.lexeme);
     }
 }
 
