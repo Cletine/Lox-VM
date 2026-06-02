@@ -19,6 +19,11 @@ pub enum Expr {
     Literal {
         value: Object,
     },
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -33,13 +38,22 @@ pub enum Statement{
     Block {
         statements : Vec<Box<Statement>>,
     },
+
     ExprStatement {
         expression: Box<Expr>,
     },
+
+    IfStatement{
+        condition : Box<Expr>,
+        thenBranch : Box<Statement>,
+        elseBranch : Box<Option<Statement>>,
+    },
+
     Var {
         name: Token,
         initializer: Box<Expr>,
     },
+
 }
 
 
