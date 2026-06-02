@@ -31,5 +31,10 @@ fn evaluate_ast (expr: &Expr) -> String {
             let rhs = evaluate_ast(value);
             format!("(var {} = {};\n)", name.lexeme, rhs)
         }
+        Expr::Logical {left, operator, right}=> {
+            let left_val = evaluate_ast(left);
+            let right_val = evaluate_ast(right);
+            format!("(if {} then {} else{})", operator.lexeme, left_val, right_val)
+        }
     }
 }
