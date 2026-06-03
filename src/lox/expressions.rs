@@ -49,6 +49,11 @@ pub enum Statement{
         elseBranch : Box<Option<Statement>>,
     },
 
+    While {
+        condition : Box<Expr>,
+        body : Box<Statement>,
+    },
+
     Var {
         name: Token,
         initializer: Box<Expr>,
