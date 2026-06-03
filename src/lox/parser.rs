@@ -112,27 +112,41 @@ impl LoxParser {
             // If Statements
             TokenType::IF =>{
                 self.current_index += 1;
-                return self.if_statement();
+                return self.if_statement()
+            }
+
+            // While Statements
+            TokenType::WHILE => {
+                self.current_index += 1;
+                return self.while_statement()
+            }
+
+            // For Statements
+            TokenType::FOR => {
+                self.current_index += 1;
+                return self.for_statement()
             }
 
             // Expr Statement
-            _ => {
+            _ => return self.expr_statement()
+        }
+    }
 
-                let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
-                self.current_index = nx_index;
-                match self.tokens[self.current_index].token_type {
-                    TokenType::SemiColon => { 
-                        match value {
-                            Ok(val) => {
-                                self.current_index += 1;
-                                return Ok(Statement::ExprStatement{expression: Box::new(val)}) 
-                            }
-                            Err(e) => return Err(e),
-                        }
+
+    fn expr_statement<'a> (&mut self) ->  Result<Statement, ParserError> {
+        let (value, nx_index) = Self::expression(&self.tokens, self.current_index);
+        self.current_index = nx_index;
+        match self.tokens[self.current_index].token_type {
+            TokenType::SemiColon => { 
+                match value {
+                    Ok(val) => {
+                        self.current_index += 1;
+                        return Ok(Statement::ExprStatement{expression: Box::new(val)}) 
                     }
-                    _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
+                    Err(e) => return Err(e),
                 }
             }
+            _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
         }
     }
 
@@ -174,6 +188,7 @@ impl LoxParser {
         match self.tokens[self.current_index].token_type {
             // (condition)
             TokenType::LeftParen => {
+                self.current_index += 1;
                 let (condition, nx_index) = Self::expression(&self.tokens, self.current_index);
                 self.current_index = nx_index;
                 match condition {
@@ -218,6 +233,133 @@ impl LoxParser {
     }
 
 
+    fn while_statement<'a> (&mut self) -> Result<Statement, ParserError> {
+        // while
+        match self.tokens[self.current_index].token_type {
+            // (condition)
+            TokenType::LeftParen => {
+                self.current_index += 1;
+                let (condition, nx_index) = Self::expression(&self.tokens, self.current_index);
+                self.current_index = nx_index;
+                match condition {
+                    Ok(cond) => {
+                        match self.tokens[self.current_index].token_type {
+                            TokenType::RightParen => {
+                                self.current_index += 1;
+                                let body = self.statement();
+                                // do [statement]
+                                match body {
+                                    Ok(b) => {
+                                      return  Ok(Statement::While {condition: Box::new(cond), body:Box::new(b)})
+                                    }
+                                    Err(e) => return Err(e)
+                                }
+                            }
+                            _ => return Err(ParserError {error_msg: "Expect ')' after condition".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                        }
+                    }
+                    Err(e) => return Err(e)
+                }
+            },
+            _ => return Err(ParserError {error_msg: "Expect '(' after 'while'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+        }
+    }
+
+
+    fn for_statement<'a> (&mut self) -> Result<Statement, ParserError> {
+        //for 
+        match self.tokens[self.current_index].token_type {
+            TokenType::LeftParen => {
+                self.current_index += 1;
+                // var_decl | expr ;
+                // Will consume ';' when processing statement
+                let initializer : Option<Statement> = 
+                    match self.tokens[self.current_index].token_type {
+                        TokenType::SemiColon => {
+                            self.current_index += 1;
+                            None
+                        }
+                        TokenType::VAR => {
+                            self.current_index += 1;
+                            let stmt = self.var_declaration()?;
+                            Some(stmt)
+
+                        }
+                        _ => {
+                            let stmt = self.expr_statement()?;
+                            Some(stmt)
+                        }
+                    };
+
+                                // (cond)expr ;
+                let mut condition: Option<Expr> =
+                    match self.tokens[self.current_index].token_type { 
+                        TokenType::SemiColon => None, 
+                        _ => { 
+                            let (expr, nx_index) = Self::expression(&self.tokens, self.current_index); 
+                            self.current_index = nx_index; 
+                            Some(expr?) 
+                        }
+                    };
+
+                match self.tokens[self.current_index].token_type {
+                    TokenType::SemiColon =>  { 
+                        self.current_index += 1;
+                        ()
+                    }
+                    _ => return Err(ParserError {error_msg: "Expect SemiColon After Loop Condition.".to_string(), error_token: self.tokens[self.current_index].clone()})
+                }
+
+
+                let increment: Option<Expr> = 
+                    match self.tokens[self.current_index].token_type { 
+                        TokenType::RightParen => {
+                            None
+                        }
+                        _ => { 
+                            let (expr, nx_index) = Self::expression(&self.tokens, self.current_index); 
+                            self.current_index = nx_index; 
+                            Some(expr?) 
+                        }
+
+                    };
+
+                //for (init; cond; incr)
+                match self.tokens[self.current_index].token_type {
+                    TokenType::RightParen => {
+                        self.current_index += 1;
+                        let mut body: Statement = self.statement()?;
+
+                        match increment  {
+                            None => (),
+                            Some(incr) => body = Statement::Block {statements: vec![Box::new(body), Box::new(Statement::ExprStatement{expression: Box::new(incr)})]},
+                        }
+
+                        if condition == None {
+                            condition = Some(Expr::Literal{value: Object::BOOL(true)});
+                        }
+
+                        body = Statement::While {condition:Box::new(condition.expect("Looping Body Expects Some(Condition)")), body:Box::new(body)};
+
+                        match initializer {
+                            None => (),
+                            Some(init) => body = Statement::Block {statements:vec![Box::new(init), Box::new(body)]}
+                        }
+
+                        return Ok(body)
+                    }
+                    _ => return Err(ParserError {error_msg: "Expect ')' after for clauses".to_string(), error_token: self.tokens[self.current_index].clone()}),
+
+                }
+            }
+            _ => return Err(ParserError {error_msg: "Expect '(' after 'for'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+        }
+    }
+
+
+
+
+
     // This function should parse through the entire expression and 
     // branch according to whether it is a sound expression or not 
     fn expression <'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
@@ -257,7 +399,6 @@ impl LoxParser {
         let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::and(tokens, current);
         match left_expr {
             Ok(mut left_expr) => {
-
                 while nx_index < tokens.len(){
                     match tokens[nx_index].token_type  {
                         TokenType::OR =>
@@ -304,15 +445,14 @@ impl LoxParser {
         let (left_expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::equality(tokens, current);
         match left_expr {
             Ok(mut left_expr) => {
-
                 while nx_index < tokens.len(){
                     match tokens[nx_index].token_type  {
-                        TokenType::OR =>
+                        TokenType::AND =>
                         {
                             let operator = tokens[nx_index].clone();
                             nx_index += 1;
                             // Determine right sided soundness of the right side of the expression
-                            match Self::and(tokens, nx_index) {
+                            match Self::equality(tokens, nx_index) {
                                 // If both left and right are sound, update the index and add to the
                                 // expression stack
                                 (Ok(right_expr), nx) => {
