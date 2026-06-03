@@ -70,10 +70,11 @@ This interpreter is actively being developed. Upcoming milestones include:
 | AST Evaluation | ✅ Complete |
 | Statement Parser (`var`, blocks) | ✅ Complete |
 | Variables & Environments | ✅ Complete  |
-| Control Flow (`if`, `while`, `for`) | ✅ Complete |
-| Functions & Closures | 🔜 Planned |
+| Control Flow (`if`, `while`, `for`) parsing | ✅ Complete |
+| Functions & Closure parsing| 🔜 Planned |
 | Classes & Inheritance | 🔜 TBD |
-| Bytecode VM (LLVM) | 🔜 Planned |
+| Compiler (LLVM IR) | 🔜 Planned |
+| JIT Compilation (Native Binary) | 🔜 Planned |
 
 ---
 
