@@ -69,11 +69,11 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Expression Parser | ✅ Complete |
 | AST Evaluation | ✅ Complete |
 | Statement Parser (`var`, blocks) | ✅ Complete |
-| Variables & Environments | 🔜 Planned |
-| Control Flow (`if`, `while`, `for`) | 🔜 Planned |
+| Variables & Environments | ✅ Complete  |
+| Control Flow (`if`, `while`, `for`) | ✅ Complete |
 | Functions & Closures | 🔜 Planned |
-| Classes & Inheritance | 🔜 Planned |
-| Bytecode VM | 🔜 Planned |
+| Classes & Inheritance | 🔜 TBD |
+| Bytecode VM (LLVM) | 🔜 Planned |
 
 ---
 
@@ -114,17 +114,12 @@ cargo test
 // Variables and arithmetic
 var a = 10;
 var b = 20;
-print a + b; // 30
-
-// String concatenation
-var greeting = "Hello, " + "Lox!";
-print greeting;
 
 // Conditional logic
 if (a < b) {
-  print "a is smaller";
+  a = a + 10;
 } else {
-  print "b is smaller";
+  b = a + b;
 }
 ```
 
