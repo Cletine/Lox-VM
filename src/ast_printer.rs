@@ -36,5 +36,14 @@ fn evaluate_ast (expr: &Expr) -> String {
             let right_val = evaluate_ast(right);
             format!("(if {} then {} else{})", operator.lexeme, left_val, right_val)
         }
+        Expr::Call {callee,arguments, ..} => {
+            let callee_val = evaluate_ast(callee);
+            let args_val: String = arguments
+                .iter()
+                .map(|args| evaluate_ast(args))
+                .collect::<Vec<String>>() 
+                .join(",");               
+            format!("{}({})", callee_val, args_val)
+        }
     }
 }
