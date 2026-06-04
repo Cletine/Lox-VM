@@ -55,12 +55,12 @@ impl LoxParser {
 
     
     fn var_declaration<'a> (&mut self) -> Result<Statement, ParserError> {
-        let mut name: Option<_> = None;
+        let name: Token;
         let mut error: Option<_> = None;
 
         match self.tokens[self.current_index].token_type {
             TokenType::IDENTIFIER => {
-                name = Some(self.tokens[self.current_index].clone()); 
+                name = self.tokens[self.current_index].clone(); 
             }
             _ => return Err(ParserError {error_msg: "Expect variable name.".to_string(), error_token: self.tokens[self.current_index].clone()})
 
@@ -95,7 +95,7 @@ impl LoxParser {
         match self.tokens[self.current_index].token_type {
             TokenType::SemiColon =>  { 
                 self.current_index += 1;
-                Ok(Statement::Var{name: name.expect("Missing variable name identifier in statement"), initializer: Box::new(initializer)})
+                Ok(Statement::Var{name: name, initializer: Box::new(initializer)})
             }
             _ => Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
@@ -114,17 +114,22 @@ impl LoxParser {
                 self.current_index += 1;
                 return self.if_statement()
             }
-
             // While Statements
             TokenType::WHILE => {
                 self.current_index += 1;
                 return self.while_statement()
             }
-
             // For Statements
             TokenType::FOR => {
                 self.current_index += 1;
                 return self.for_statement()
+            }
+            TokenType::FUN => {
+                self.current_index += 1;
+                return self.function("function".to_string())
+            }
+            TokenType::RETURN => {
+                return self.return_statement()
             }
 
             // Expr Statement
@@ -357,6 +362,92 @@ impl LoxParser {
     }
 
 
+    fn function<'a> (&mut self, kind: String) -> Result<Statement, ParserError> {
+        let mut parse_error_status: Option<_> = None;
+
+        match self.tokens[self.current_index].token_type {
+            TokenType::IDENTIFIER => {
+                let name = self.tokens[self.current_index].clone();
+                let mut arguments = Vec::new();
+                if self.tokens[self.current_index].token_type != TokenType::RightParen {
+                    loop {
+
+                        if arguments.len() > 255 {
+                            return Err(ParserError {error_msg: "Can't have more than 255 arguments".to_string(), error_token: self.tokens[self.current_index + 1].clone()})
+                        }
+
+                        let (nx_expression, nx_index) = Self::expression(&self.tokens, self.current_index);
+                        self.current_index = nx_index;
+
+                        match nx_expression  {
+                            Ok(expr) => {
+                                arguments.push(Box::new(expr));
+                            }
+                            Err(parse_error) => {
+                                parse_error_status = Some(parse_error);
+                                break
+                            }
+                        }
+
+                        if self.tokens[self.current_index].token_type != TokenType::Comma {
+                            break;
+                        }
+                    }
+                }
+
+                match parse_error_status {
+                    None => {
+
+                        match self.tokens[self.current_index].token_type {
+                            TokenType::RightParen =>  { 
+                                self.current_index += 1;
+                                match self.tokens[self.current_index].token_type {
+                                    TokenType::LeftBrace => {
+                                        let body = self.block()?;
+                                        match body {
+                                            Statement::Block{statements} => return Ok(Statement::Function{name: name, arguments:arguments, body: statements}),
+                                            _ => return Err(ParserError {error_msg:"Parsing error occured when attempting to parse function body".to_string(), error_token: self.tokens[self.current_index].clone()}),
+
+                                        }
+                                    }
+                                    _ => Err(ParserError {error_msg: format!("Expect '{{' Before {} body.", kind), error_token: self.tokens[self.current_index].clone()}),
+                                }
+                            }
+                            _ => Err(ParserError {error_msg: "Expect ')' After Call Arguments.".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                        }
+                        }
+                    Some(parse_error) => return Err(parse_error),
+                }
+            }
+
+            _ => return Err(ParserError {error_msg: format!("Expect '{}' name ", kind), error_token: self.tokens[self.current_index].clone()})
+
+        }
+    }
+
+
+    fn return_statement<'a> (&mut self) -> Result<Statement, ParserError> {
+        let keyword = self.tokens[self.current_index].clone();
+        let mut value = Ok(Expr::Literal {value: Object::NULL});
+        let nx_index: usize;
+        match self.tokens[self.current_index].token_type {
+            TokenType::SemiColon => (),
+            _ => {
+                (value, nx_index) = Self::expression(&self.tokens, self.current_index);
+                self.current_index = nx_index;
+            }
+        }
+
+        match self.tokens[self.current_index].token_type {
+            TokenType::SemiColon =>  { 
+                self.current_index += 1;
+                return Ok(Statement::Return {keyword: keyword, value: Box::new(value?)})
+            }
+            _ => return Err(ParserError {error_msg: "Expect SemiColon After Loop Condition.".to_string(), error_token: self.tokens[self.current_index].clone()})
+        }
+    }
+
+
 
 
 
@@ -371,7 +462,8 @@ impl LoxParser {
 
         match tokens[nx_index].token_type {
             TokenType::Equal=> {
-                let (result, nx_index) = Self::assignment(tokens, nx_index + 1);
+                let (result, nx) = Self::assignment(tokens, nx_index + 1);
+                nx_index = nx;
                 match result {
                     Ok(right_expr) => {
                         match left_expr {
@@ -695,10 +787,90 @@ impl LoxParser {
                         (Err(parse_error), cur_index)  => (Err(parse_error), cur_index)
                     }
                 }
-                _ => Self::primary(tokens, current),
+                _ => Self::call(tokens, current),
             };
 
         return unary
+    }
+
+
+    fn call<'a> (tokens: &'a Vec<Token>, current: usize) -> (Result<Expr, ParserError>, usize) {
+            //  Parse the primary expression (the left-hand base callee)
+        let (call_expr, mut nx_index) = Self::primary(tokens, current);
+
+        let mut callee = match call_expr {
+            Ok(expr) => expr,
+            Err(parse_error) => return (Err(parse_error), nx_index),
+        };
+
+        //  Loop and accumulate nested function calls (e.g., foo()()())
+        while nx_index < tokens.len() {
+            match tokens[nx_index].token_type {
+                TokenType::LeftParen => {
+                    nx_index += 1;
+
+                    // Safely pass ownership of the accumulated callee
+                    let (next_callee, next_index) = Self::finish_call(tokens, nx_index, callee);
+                    nx_index = next_index;
+
+                    match next_callee {
+                        Ok(expr) => callee = expr,
+                        Err(parse_error) => return (Err(parse_error), nx_index),
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        (Ok(callee), nx_index)
+    }
+
+
+    fn finish_call <'a> (tokens: &'a Vec<Token>, current: usize, callee: Expr) -> (Result<Expr, ParserError>, usize) {
+        let mut parse_error_status: Option<_> = None;
+        let mut arguments = Vec::new();
+        let mut cur_index = current;
+
+
+        if tokens[current].token_type != TokenType::RightParen {
+            loop {
+
+                if arguments.len() > 255 {
+                    return (Err(ParserError {error_msg: "Can't have more than 255 arguments".to_string(), error_token: tokens[cur_index + 1].clone()}), cur_index)
+                }
+
+                let (nx_expression, nx_index) = Self::expression(tokens, current);
+                cur_index = nx_index;
+
+                match nx_expression  {
+                    Ok(expr) => {
+                        arguments.push(Box::new(expr));
+                    }
+                    Err(parse_error) => {
+                        parse_error_status = Some(parse_error);
+                        break
+                    }
+                }
+
+                if tokens[cur_index].token_type != TokenType::Comma {
+                    break;
+                }
+            }
+        }
+
+        match parse_error_status  {
+            None => {
+                match tokens[cur_index].token_type {
+                    TokenType::RightParen =>  { 
+                        let paren = tokens[cur_index].clone();
+                        cur_index += 1;
+                        (Ok(Expr::Call{callee: Box::new(callee), paren:paren, arguments: arguments}), cur_index)
+                    }
+                    _ => (Err(ParserError {error_msg: "Expect ')' After Call Arguments.".to_string(), error_token: tokens[cur_index].clone()}), cur_index),
+                }
+            }
+            Some(parse_error) => (Err(parse_error), cur_index)
+        }
     }
 
 
@@ -742,7 +914,7 @@ impl LoxParser {
                 TokenType::LeftParen => {
                     current += 1;
 
-                    let (expr, mut nx_index) : (Result<Expr, ParserError>, usize) = Self::expression(tokens, current);
+                    let (expr, nx_index) : (Result<Expr, ParserError>, usize) = Self::expression(tokens, current);
 
                     match expr {
                         Ok(expr) => {
@@ -797,9 +969,5 @@ impl LoxParser {
         }
 
         current
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.current_index >= self.tokens.len() 
     }
 }

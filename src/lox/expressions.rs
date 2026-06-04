@@ -13,6 +13,11 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Box<Expr>>,
+    },
     Grouping {
         expression: Box<Expr>,
     },
@@ -38,17 +43,23 @@ pub enum Statement{
     Block {
         statements : Vec<Box<Statement>>,
     },
-
     ExprStatement {
         expression: Box<Expr>,
     },
-
+    Function {
+        name: Token,
+        arguments: Vec<Box<Expr>>,
+        body: Vec<Box<Statement>>,
+    },
     IfStatement{
         condition : Box<Expr>,
         thenBranch : Box<Statement>,
         elseBranch : Box<Option<Statement>>,
     },
-
+    Return{
+        keyword : Token,
+        value : Box<Expr>,
+    },
     While {
         condition : Box<Expr>,
         body : Box<Statement>,
@@ -58,7 +69,6 @@ pub enum Statement{
         name: Token,
         initializer: Box<Expr>,
     },
-
 }
 
 
