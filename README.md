@@ -71,7 +71,7 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Statement Parser (`var`, blocks) | ✅ Complete |
 | Variables & Environments | ✅ Complete  |
 | Control Flow (`if`, `while`, `for`) parsing | ✅ Complete |
-| Functions & Closure parsing| 🔜 Planned |
+| Functions & Closure parsing| ✅ Complete  |
 | Classes & Inheritance | 🔜 TBD |
 | Compiler (LLVM IR) | 🔜 Planned |
 | JIT Compilation (Native Binary) | 🔜 Planned |
