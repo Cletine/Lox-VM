@@ -62,7 +62,7 @@ impl LoxParser {
             TokenType::IDENTIFIER => {
                 name = self.tokens[self.current_index].clone(); 
             }
-            _ => return Err(ParserError {error_msg: "Expect variable name.".to_string(), error_token: self.tokens[self.current_index].clone()})
+            _ => return Err(ParserError {error_msg: "Var Decl ERROR: Expect variable name.".to_string(), error_token: self.tokens[self.current_index].clone()})
 
         }
 
@@ -97,9 +97,11 @@ impl LoxParser {
                 self.current_index += 1;
                 Ok(Statement::Var{name: name, initializer: Box::new(initializer)})
             }
-            _ => Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
+            _ => Err(ParserError {error_msg: "Var Decl ERROR: Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
     }
+
+
 
     fn statement<'a> (&mut self) ->  Result<Statement, ParserError> {
         match self.tokens[self.current_index].token_type {
@@ -151,7 +153,7 @@ impl LoxParser {
                     Err(e) => return Err(e),
                 }
             }
-            _ => return Err(ParserError {error_msg: "Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
+            _ => return Err(ParserError {error_msg: "Expr ERROR: Expect SemiColon After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}), 
         }
     }
 
@@ -182,7 +184,7 @@ impl LoxParser {
                     self.current_index += 1;
                     return Ok(Statement::Block {statements: block_statements})
                  }
-            _ => return Err(ParserError {error_msg: "Expect '}' After Expression.".to_string(), error_token: self.tokens[self.current_index].clone()}),
+            _ => return Err(ParserError {error_msg: "Block ERROR: Expect '}' After Blocking Statement.".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
     }
 
@@ -225,14 +227,14 @@ impl LoxParser {
                                     Err(e) => return Err(e)
                                 }
                             }
-                            _ => return Err(ParserError {error_msg: "Expect ')' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                            _ => return Err(ParserError {error_msg: "Conditional Statement ERROR: Expect ')' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
                         }
                     }
                     Err(e) => return Err(e)
                 }
             },
 
-            _ => return Err(ParserError {error_msg: "Expect '(' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+            _ => return Err(ParserError {error_msg: "Conditional Statement ERROR: Expect '(' after 'if'".to_string(), error_token: self.tokens[self.current_index].clone()}),
 
         }
     }
@@ -260,13 +262,13 @@ impl LoxParser {
                                     Err(e) => return Err(e)
                                 }
                             }
-                            _ => return Err(ParserError {error_msg: "Expect ')' after condition".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                            _ => return Err(ParserError {error_msg: "Looping Statement ERROR: Expect ')' after while condition".to_string(), error_token: self.tokens[self.current_index].clone()}),
                         }
                     }
                     Err(e) => return Err(e)
                 }
             },
-            _ => return Err(ParserError {error_msg: "Expect '(' after 'while'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+            _ => return Err(ParserError {error_msg: "Looping Statement ERROR: Expect '(' after 'while'".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
     }
 
@@ -312,8 +314,9 @@ impl LoxParser {
                         self.current_index += 1;
                         ()
                     }
-                    _ => return Err(ParserError {error_msg: "Expect SemiColon After Loop Condition.".to_string(), error_token: self.tokens[self.current_index].clone()})
+                    _ => return Err(ParserError {error_msg: "Looping Statement ERROR: Expect SemiColon After for Loop Condition.".to_string(), error_token: self.tokens[self.current_index].clone()})
                 }
+                
 
 
                 let increment: Option<Expr> = 
@@ -353,11 +356,11 @@ impl LoxParser {
 
                         return Ok(body)
                     }
-                    _ => return Err(ParserError {error_msg: "Expect ')' after for clauses".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                    _ => return Err(ParserError {error_msg: "Looping Statement ERROR: Expect ')' after for clauses".to_string(), error_token: self.tokens[self.current_index].clone()}),
 
                 }
             }
-            _ => return Err(ParserError {error_msg: "Expect '(' after 'for'".to_string(), error_token: self.tokens[self.current_index].clone()}),
+            _ => return Err(ParserError {error_msg: "Looping Statement ERROR: Expect '(' after 'for'".to_string(), error_token: self.tokens[self.current_index].clone()}),
         }
     }
 
@@ -369,58 +372,76 @@ impl LoxParser {
             TokenType::IDENTIFIER => {
                 let name = self.tokens[self.current_index].clone();
                 let mut arguments = Vec::new();
-                if self.tokens[self.current_index].token_type != TokenType::RightParen {
-                    loop {
+                //move off function name
+                self.current_index += 1;
+                match self.tokens[self.current_index].token_type {
+                    TokenType::LeftParen => {
+                        //move off/consume left paren
+                        self.current_index += 1;
+                        //loop through function args
+                        if self.tokens[self.current_index].token_type != TokenType::RightParen {
+                            loop {
 
-                        if arguments.len() > 255 {
-                            return Err(ParserError {error_msg: "Can't have more than 255 arguments".to_string(), error_token: self.tokens[self.current_index + 1].clone()})
-                        }
+                                if arguments.len() > 255 {
+                                    return Err(ParserError {error_msg: "Function Declaration ERROR: Can't have more than 255 arguments".to_string(), error_token: self.tokens[self.current_index + 1].clone()})
+                                }
 
-                        let (nx_expression, nx_index) = Self::expression(&self.tokens, self.current_index);
-                        self.current_index = nx_index;
+                                let (nx_expression, nx_index) = Self::expression(&self.tokens, self.current_index);
+                                self.current_index = nx_index;
 
-                        match nx_expression  {
-                            Ok(expr) => {
-                                arguments.push(Box::new(expr));
-                            }
-                            Err(parse_error) => {
-                                parse_error_status = Some(parse_error);
-                                break
-                            }
-                        }
-
-                        if self.tokens[self.current_index].token_type != TokenType::Comma {
-                            break;
-                        }
-                    }
-                }
-
-                match parse_error_status {
-                    None => {
-
-                        match self.tokens[self.current_index].token_type {
-                            TokenType::RightParen =>  { 
-                                self.current_index += 1;
-                                match self.tokens[self.current_index].token_type {
-                                    TokenType::LeftBrace => {
-                                        let body = self.block()?;
-                                        match body {
-                                            Statement::Block{statements} => return Ok(Statement::Function{name: name, arguments:arguments, body: statements}),
-                                            _ => return Err(ParserError {error_msg:"Parsing error occured when attempting to parse function body".to_string(), error_token: self.tokens[self.current_index].clone()}),
-
-                                        }
+                                match nx_expression  {
+                                    Ok(expr) => {
+                                        arguments.push(Box::new(expr));
                                     }
-                                    _ => Err(ParserError {error_msg: format!("Expect '{{' Before {} body.", kind), error_token: self.tokens[self.current_index].clone()}),
+                                    Err(parse_error) => {
+                                        parse_error_status = Some(parse_error);
+                                        break
+                                    }
+                                }
+                                if self.tokens[self.current_index].token_type != TokenType::Comma {
+                                    break;
+                                }
+                                // move off/comsume comma
+                                else {
+                                    self.current_index += 1;
                                 }
                             }
-                            _ => Err(ParserError {error_msg: "Expect ')' After Call Arguments.".to_string(), error_token: self.tokens[self.current_index].clone()}),
                         }
-                        }
-                    Some(parse_error) => return Err(parse_error),
+                        // check for any parsing error before parsing the body
+                        match parse_error_status {
+                            None => {
+                                match self.tokens[self.current_index].token_type {
+                                    TokenType::RightParen =>  { 
+                                        //move off/consume right paren
+                                        self.current_index += 1;
+                                        match self.tokens[self.current_index].token_type {
+                                            // parse the function body
+                                            TokenType::LeftBrace => {
+                                                //move off/comsome left brace
+                                                self.current_index += 1;
+                                                let body = self.block()?;
+                                                match body {
+                                                    Statement::Block{statements} => return Ok(Statement::Function{name: name, arguments:arguments, body: statements}),
+                                                    // return function declaration
+                                                    _ => return Err(ParserError {error_msg:"Function Declaration ERROR: Parsing error occured when attempting to parse function body".to_string(), error_token: self.tokens[self.current_index].clone()}),
+
+                                                }
+                                            }
+                                            _ => Err(ParserError {error_msg: format!("Function Declaration ERROR: Expect '{{' Before {} body.", kind), error_token: self.tokens[self.current_index].clone()}),
+                                        }
+                                    }
+                                    _ => Err(ParserError {error_msg: "Function Declaration ERROR: Expect ')' After Call Arguments.".to_string(), error_token: self.tokens[self.current_index].clone()}),
+                                }
+                            }
+                            Some(parse_error) => return Err(parse_error),
+                                }
+                    }
+
+                    _ => Err(ParserError {error_msg: format!("Function Declaration ERROR: Expect '(' After {} Name.", kind) ,error_token: self.tokens[self.current_index].clone()}),
+
                 }
             }
-
-            _ => return Err(ParserError {error_msg: format!("Expect '{}' name ", kind), error_token: self.tokens[self.current_index].clone()})
+            _ => return Err(ParserError {error_msg: format!("Function Declaration ERROR: Expect '{}' name ", kind), error_token: self.tokens[self.current_index].clone()})
 
         }
     }
@@ -430,6 +451,8 @@ impl LoxParser {
         let keyword = self.tokens[self.current_index].clone();
         let mut value = Ok(Expr::Literal {value: Object::NULL});
         let nx_index: usize;
+        //move off keyword
+        self.current_index += 1;
         match self.tokens[self.current_index].token_type {
             TokenType::SemiColon => (),
             _ => {
@@ -443,7 +466,7 @@ impl LoxParser {
                 self.current_index += 1;
                 return Ok(Statement::Return {keyword: keyword, value: Box::new(value?)})
             }
-            _ => return Err(ParserError {error_msg: "Expect SemiColon After Loop Condition.".to_string(), error_token: self.tokens[self.current_index].clone()})
+            _ => return Err(ParserError {error_msg: "Return ERROR: Expect SemiColon After return statement.".to_string(), error_token: self.tokens[self.current_index].clone()})
         }
     }
 
@@ -469,7 +492,7 @@ impl LoxParser {
                         match left_expr {
                             Ok(Expr::Variable {name: n,}) => (Ok(Expr::Assign {name: n, value: Box::new(right_expr)}), nx_index),
                             _ => {
-                                    ParserError {error_msg: "Invalid assignment type".to_string(), error_token: tokens[nx_index - 1].clone() }.parse_error();
+                                    ParserError {error_msg: "Variable Assign ERROR: Invalid assignment type".to_string(), error_token: tokens[nx_index - 1].clone() }.parse_error();
                                     return (left_expr, nx_index)
                             }
                         }
@@ -832,14 +855,14 @@ impl LoxParser {
         let mut cur_index = current;
 
 
-        if tokens[current].token_type != TokenType::RightParen {
+        if tokens[cur_index].token_type != TokenType::RightParen {
             loop {
 
                 if arguments.len() > 255 {
-                    return (Err(ParserError {error_msg: "Can't have more than 255 arguments".to_string(), error_token: tokens[cur_index + 1].clone()}), cur_index)
+                    return (Err(ParserError {error_msg: "Function Call ERROR: Can't have more than 255 arguments".to_string(), error_token: tokens[cur_index + 1].clone()}), cur_index)
                 }
 
-                let (nx_expression, nx_index) = Self::expression(tokens, current);
+                let (nx_expression, nx_index) = Self::expression(tokens, cur_index);
                 cur_index = nx_index;
 
                 match nx_expression  {
@@ -855,6 +878,10 @@ impl LoxParser {
                 if tokens[cur_index].token_type != TokenType::Comma {
                     break;
                 }
+                // else move off/cosume the comma
+                else {
+                    cur_index += 1;
+                }
             }
         }
 
@@ -866,7 +893,7 @@ impl LoxParser {
                         cur_index += 1;
                         (Ok(Expr::Call{callee: Box::new(callee), paren:paren, arguments: arguments}), cur_index)
                     }
-                    _ => (Err(ParserError {error_msg: "Expect ')' After Call Arguments.".to_string(), error_token: tokens[cur_index].clone()}), cur_index),
+                    _ => (Err(ParserError {error_msg: "Function Call ERROR: Expect ')' After Call Arguments.".to_string(), error_token: tokens[cur_index].clone()}), cur_index),
                 }
             }
             Some(parse_error) => (Err(parse_error), cur_index)
@@ -926,8 +953,7 @@ impl LoxParser {
                                 }
                                 _ => {
                                     //parse_error(self.tokens[self.current], "Expect ')' after expression.");
-                                    //TODO some syncronizing effort or panic to evaluate the entire ast 
-                                    (Err(ParserError {error_msg: "Expect ')' after expression.".to_string(), error_token: tokens[nx_index].clone() }), nx_index)
+                                    (Err(ParserError {error_msg: "Expression Grouping ERROR: Expect ')' after expression.".to_string(), error_token: tokens[nx_index].clone() }), nx_index)
                                 }
                             }
                         }
