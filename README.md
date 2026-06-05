@@ -84,6 +84,7 @@ This interpreter is actively being developed. Upcoming milestones include:
 
 - [Rust](https://www.rust-lang.org/tools/install) (1.78+)
 - Cargo (bundled with Rust)
+- LLVM (18.1.3+)
 
 ### Build
 
