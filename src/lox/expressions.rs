@@ -38,6 +38,34 @@ pub enum Expr {
     },
 }
 
+pub trait ExprVisitor<R> {
+    fn visit_assign_expr(&mut self, name: &Token, value: &Expr) -> R;
+    fn visit_binary_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> R;
+    fn visit_call_expr(&mut self, callee: &Expr, paren: &Token, arguments: &[Box<Expr>]) -> R;
+    fn visit_grouping_expr(&mut self, expression: &Expr) -> R;
+    fn visit_literal_expr(&mut self, value: &Object) -> R;
+    fn visit_logical_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> R;
+    fn visit_unary_expr(&mut self, operator: &Token, right: &Expr) -> R;
+    fn visit_variable_expr(&mut self, name: &Token) -> R;
+}
+
+
+impl Expr {
+    pub fn accept<R>(&self, visitor: &mut impl ExprVisitor<R>) -> R {
+        match self {
+            Expr::Assign { name, value } => visitor.visit_assign_expr(name, value),
+            Expr::Binary { left, operator, right } => visitor.visit_binary_expr(left, operator, right),
+            Expr::Call { callee, paren, arguments } => visitor.visit_call_expr(callee, paren, arguments),
+            Expr::Grouping { expression } => visitor.visit_grouping_expr(expression),
+            Expr::Literal { value } => visitor.visit_literal_expr(value),
+            Expr::Logical { left, operator, right } => visitor.visit_logical_expr(left, operator, right),
+            Expr::Unary { operator, right } => visitor.visit_unary_expr(operator, right),
+            Expr::Variable { name } => visitor.visit_variable_expr(name),
+        }
+    }
+}
+
+
 #[derive (Debug, PartialEq, Clone)]
 pub enum Statement{
     Block {
@@ -70,5 +98,32 @@ pub enum Statement{
         initializer: Box<Expr>,
     },
 }
+
+pub trait StmtVisitor<R> {
+    fn visit_block_stmt(&mut self, statements: &[Box<Statement>]) -> R;
+    fn visit_expr_stmt(&mut self, expression: &Expr) -> R;
+    fn visit_function_stmt(&mut self, name: &Token, arguments: &[Box<Expr>], body: &[Box<Statement>]) -> R;
+    fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Statement, else_branch: &Option<Statement>) -> R;
+    fn visit_return_stmt(&mut self, keyword: &Token, value: &Expr) -> R;
+    fn visit_while_stmt(&mut self, condition: &Expr, body: &Statement) -> R;
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> R;
+}
+
+impl Statement {
+    pub fn accept<R>(&self, visitor: &mut impl StmtVisitor<R>) -> R {
+        match self {
+            Statement::Block { statements } => visitor.visit_block_stmt(statements),
+            Statement::ExprStatement { expression } => visitor.visit_expr_stmt(expression),
+            Statement::Function { name, arguments, body } => visitor.visit_function_stmt(name, arguments, body),
+            Statement::IfStatement { condition, thenBranch, elseBranch } => {
+                visitor.visit_if_stmt(condition, thenBranch, elseBranch.as_ref())
+            }
+            Statement::Return { keyword, value } => visitor.visit_return_stmt(keyword, value),
+            Statement::While { condition, body } => visitor.visit_while_stmt(condition, body),
+            Statement::Var { name, initializer } => visitor.visit_var_stmt(name, initializer),
+        }
+    }
+}
+
 
 
