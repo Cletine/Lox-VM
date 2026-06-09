@@ -13,7 +13,7 @@ pub struct VariableInfo<'ctx> {
 
 pub struct Environment <'ctx> {
 
-    scope: Vec<Hashmap<String, Object<'ctx>>>,
+    scope: Vec<Hashmap<&str, VariableInfo<'ctx>>>,
 }
 
 impl<'ctx> Environmnet <'ctx> {
@@ -37,14 +37,16 @@ impl<'ctx> Environmnet <'ctx> {
         }
     }
 
-    pub fn define(&mut self, name: String, pointer: PointerValue<'ctx>, ty: BasicTypeEnum, is_mutable: bool) {
+    pub fn define(&mut self, name: &Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum, is_mutable: bool) {
+        let var_name = name.lexeme.to_str();
         if let Some(current_scope) = self.scopes.last_mut() {
             let info = VariableInfo {pointer: pointer, ty:ty, is_mutable:is_mutable};
             current_scope.insert(name, info);
         }
     }
 
-    pub fn lookup(&self, name: &str) -> Option<&VariableInfo<'ctx>> {
+    pub fn lookup(&self, name: &Token) -> Option<&VariableInfo<'ctx>> {
+        let var_name = name.lexeme.to_str();
         for scope in self.scopes.iter().rev() {
             if let Some(info) = scope.get(name) {
                 return Some(info);
@@ -53,11 +55,12 @@ impl<'ctx> Environmnet <'ctx> {
         None
     }
 
-    pub fn assign(&self, name: Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum, is_mutable: bool) {
+    pub fn assign(&self, name: &Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum, is_mutable: bool) {
         let info = VariableInfo {pointer: pointer, ty:ty, is_mutable:is_mutable};
+        let var_name = name.lexeme.to_str();
         for current_scope in self.scopes.iter().rev() {
-            if current_scope.contains_key(name) {
-                return current_scope.insert(name, info);
+            if current_scope.contains_key(var_name) {
+                return current_scope.insert(var_name, info);
             }
         }
         panic!("Internal Compiler Error: Undefined Variable '{}'", name.lexeme);
