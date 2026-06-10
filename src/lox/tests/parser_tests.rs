@@ -4,7 +4,7 @@ use super::super::*;
 fn nil_primary() {
     let test_tokens = vec![Token { token_type: TokenType::NIL, lexeme: "nill".to_string(), literal: Object::NULL, line: 1 }, Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0, parse_error:false, 
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Literal {value: Object::NULL, }));
@@ -15,7 +15,8 @@ fn nil_primary() {
 fn number_primary() {
     let test_tokens = vec![Token { token_type: TokenType::NUMBER, lexeme: "1.0".to_string(), literal: Object::NUMBER(1.0), line: 1 }, Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0,  parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Literal {value: Object::NUMBER(1.0), }));
@@ -27,7 +28,8 @@ fn string_primary() {
     let test_tokens = vec![Token { token_type: TokenType::STRING, lexeme: "String".to_string(), literal: Object::STRING("String".to_string()), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0, parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Literal {value: Object::STRING("String".to_string()), }));
@@ -38,7 +40,8 @@ fn string_primary() {
 fn true_primary() {
     let test_tokens = vec![Token { token_type: TokenType::TRUE, lexeme: "true".to_string(), literal: Object::NULL, line: 1 }, Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0, parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Literal {value: Object::BOOL(true), }));
@@ -48,6 +51,11 @@ fn true_primary() {
 #[test]
 fn false_primary() {
     let test_tokens = vec![Token { token_type: TokenType::FALSE, lexeme: "false".to_string(), literal: Object::NULL, line: 1 }, Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}]; let mut parser = LoxParser{ tokens: test_tokens, current_index: 0 
+    };
+
+    let mut parser = LoxParser{
+        tokens: test_tokens, current_index: 0, parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Literal {value: Object::BOOL(false), }));
@@ -61,7 +69,8 @@ fn expression_primary() {
                            Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), literal: Object::NULL, line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0, parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Grouping {expression: Box::new(Expr::Literal {value: Object::NUMBER(1.0), }), }));
@@ -74,7 +83,8 @@ fn neg_unary () {
                            Token { token_type: TokenType::NUMBER, lexeme: "1.0".to_string(), literal: Object::NUMBER(1.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Unary{operator: Token { token_type: TokenType::Minus, lexeme: "-".to_string(), literal: Object::NULL, line: 1 }, 
@@ -89,7 +99,8 @@ fn bang_unary () {
                         Token { token_type: TokenType::NUMBER, lexeme: "1.0".to_string(), literal: Object::NUMBER(1.0), line: 1 }, 
                         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Unary{operator: Token { token_type: TokenType::Bang, lexeme: "!".to_string(), literal: Object::NULL, line: 1 },
@@ -104,7 +115,8 @@ fn div_factor() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -122,7 +134,8 @@ fn mul_factor() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -139,7 +152,8 @@ fn add_terms() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -156,7 +170,8 @@ fn sub_terms() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -174,7 +189,8 @@ fn factored_term() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -194,7 +210,8 @@ fn unary_after_term() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -213,7 +230,8 @@ fn less_than_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -230,7 +248,8 @@ fn less_than_eq_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -247,7 +266,8 @@ fn greater_than_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -264,7 +284,8 @@ fn greater_than_eq_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -280,7 +301,8 @@ fn equal_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -298,7 +320,8 @@ fn not_equal_comp() {
                            Token { token_type: TokenType::NUMBER, lexeme: "2".to_string(), literal: Object::NUMBER(2.0), line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Binary{
@@ -316,7 +339,8 @@ fn var_assign() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse_expr(), Ok(Expr::Assign {
@@ -335,7 +359,8 @@ fn var_declaration() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::Var {
@@ -351,7 +376,8 @@ fn null_var_declaration() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::Var {
@@ -370,7 +396,8 @@ fn expression_statements() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::ExprStatement {
@@ -398,7 +425,8 @@ fn blocking_statements() {
                            Token { token_type: TokenType::RightBrace, lexeme: "}".to_string(), literal: Object::NULL, line: 1},
                            Token { token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     let statements = parser.parse();
@@ -429,7 +457,8 @@ fn if_statements() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::IfStatement{
@@ -470,7 +499,8 @@ fn if_else_statements() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::IfStatement{
@@ -505,7 +535,8 @@ fn and_statement() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::ExprStatement {
@@ -538,7 +569,8 @@ fn and_one_statement() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::ExprStatement {
@@ -574,7 +606,8 @@ fn or_statement() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::ExprStatement {
@@ -607,7 +640,8 @@ fn or_one_statement() {
                            Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
     assert_eq!(parser.parse()[0], Statement::ExprStatement {
@@ -646,7 +680,8 @@ fn while_statement (){
         Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
 
@@ -695,7 +730,8 @@ fn for_statement() {
         Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
 
@@ -757,7 +793,8 @@ fn for_no_init_statement() {
         Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
 
@@ -816,7 +853,8 @@ fn for_no_cond_statement() {
         Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
 
@@ -877,7 +915,8 @@ fn for_no_increment_statement() {
         Token { token_type: TokenType::SemiColon, lexeme: ";".to_string(), literal: Object::NULL, line: 1},
         Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
 
 
@@ -915,7 +954,8 @@ fn funtion_call() {
                            Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), literal: Object::NULL, line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
     
 
@@ -934,7 +974,8 @@ fn funtion_call_void_args() {
                            Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), literal: Object::NULL, line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
     
 
@@ -956,7 +997,8 @@ fn funtion_call_cons_args() {
                            Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), literal: Object::NULL, line: 1 }, 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
     
 
@@ -984,7 +1026,8 @@ fn funtion_declaration_void() {
 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
     
 
@@ -1017,7 +1060,8 @@ fn funtion_declaration_return() {
 
                            Token {token_type: TokenType::EOF, lexeme: "".to_string(), literal: Object::NULL, line: 1}];
     let mut parser = LoxParser{
-        tokens: test_tokens, current_index: 0 
+        tokens: test_tokens, current_index: 0 , parse_error:false, 
+
     };
     
 
