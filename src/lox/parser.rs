@@ -15,10 +15,12 @@ use crate::ParserError;
 pub struct LoxParser {
     pub tokens: Vec<Token>,
     pub current_index: usize,
+    pub parse_error: bool,
 }
 
 
 impl LoxParser {
+    //TODO add a init/new function to initialize a fresh parser instance
 
     pub fn parse_expr (&mut self) -> Result<Expr, ParserError>{
         let (expr, _index) = Self::expression(&self.tokens, self.current_index);
@@ -36,7 +38,7 @@ impl LoxParser {
                 Err(e) => {
                     e.parse_error();
                     self.current_index = Self::syncronize(&self.tokens, self.current_index);
-
+                    self.parse_error = true;
                 }
             };
         }
