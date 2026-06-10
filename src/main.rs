@@ -4,6 +4,7 @@ use std::fs;
 use std::process;
 use lox_interpreter::lox::LoxScanner;
 use lox_interpreter::lox::LoxParser;
+use lox_interpreter::lox::compiler::compile_program;
 use lox_interpreter::ast_printer::print_ast;
 
 
@@ -20,7 +21,7 @@ fn main() {
 }
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let contents = fs::read_to_string(config.file_path)?;
+    let contents = fs::read_to_string(&config.file_path)?;
     //debug_print(&contents);
     let mut scanner = LoxScanner{
         source: contents, 
@@ -29,18 +30,26 @@ fn run(config: Config) -> Result<(), Box<dyn Error>> {
         current: 0,
         line: 1,
     };
+
     scanner.scan_tokens();
 
     let mut parser = LoxParser{
-        tokens: scanner.tokens, current_index: 0 
+        tokens: scanner.tokens,
+        current_index: 0,
+        parse_error: false,
     };
 
-    let result_expr = parser.parse_expr();
-    match result_expr {
-        Ok(expr) => print_ast(&expr),
-        _ => (),
-    };
+    let program_statements = parser.parse();
 
+    if parser.parse_error == true {
+        println!("Lox ERROR: Problem while parsing program");
+        process::exit(1);
+    }
+    else {
+        let file_name_path = config.file_path.clone(); 
+        let program_name = file_name_path.as_str();
+        let _ = compile_program(&program_statements, program_name);
+    }
     Ok(())
 }
 
@@ -50,9 +59,12 @@ fn debug_print(source : &String) -> () {
     } 
 }
 
+
+#[derive (Debug, Clone)]
 struct Config {
     pub file_path: String,
 }
+
 
 impl Config {
     fn build (mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
