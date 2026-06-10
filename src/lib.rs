@@ -5,6 +5,7 @@ use crate::lox::Token;
 use crate::lox::TokenType;
 use crate::lox::scanner;
 use crate::lox::parser;
+use crate::lox::compiler;
 
 
 #[derive (Debug, PartialEq)]
@@ -23,6 +24,17 @@ impl ParserError  {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum CompilerError {
+    LLVMError(String),
+    UndefinedVariable(String),
+    TypeMismatch(String),
+    VariableEnvironment(String),
+}
+
+
+
 
 
 pub fn scan_error (line:usize, ch:String, message: &str) {
