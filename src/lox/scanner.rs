@@ -38,7 +38,8 @@ pub struct LoxScanner {
 }
 
 // TODO Change literal String To string slices 
-impl LoxScanner { 
+impl LoxScanner {
+    //TODO add a init/new function to initialize a fresh scanner instance
     pub fn scan_tokens(&mut self) {
         while !(self.is_at_end()) {
             self.start = self.current;
