@@ -1,7 +1,7 @@
-use lox_interpreter::core::Expr;
-use lox_interpreter::core::Object;
-use lox_interpreter::core::Token;
-use lox_interpreter::core::TokenType;
+use L3_VM::core::Expr;
+use L3_VM::core::Object;
+use L3_VM::core::Token;
+use L3_VM::core::TokenType;
 
 
 fn main() {

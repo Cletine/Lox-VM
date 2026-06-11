@@ -3,6 +3,17 @@
 version = 4
 
 [[package]]
+name = "L3_VM"
+version = "0.1.0"
+dependencies = [
+ "inkwell",
+ "lazy_static",
+ "llvm-sys",
+ "project-root",
+ "scanner-rust",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -120,17 +131,6 @@ dependencies = [
  "libc",
  "regex-lite",
  "semver",
-]
-
-[[package]]
-name = "lox_interpreter"
-version = "0.1.0"
-dependencies = [
- "inkwell",
- "lazy_static",
- "llvm-sys",
- "project-root",
- "scanner-rust",
 ]
 
 [[package]]
