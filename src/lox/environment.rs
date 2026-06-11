@@ -14,7 +14,7 @@ pub struct VariableInfo<'ctx> {
 }
 
 pub struct Environment <'ctx> {
-    scope: Vec<HashMap<&'ctx str, VariableInfo<'ctx>>>,
+    scope: Vec<HashMap<String, VariableInfo<'ctx>>>,
 }
 
 impl<'ctx> Environment <'ctx> {
@@ -41,8 +41,8 @@ impl<'ctx> Environment <'ctx> {
     }
 
 
-    pub fn define(&mut self, name: &'ctx Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum<'ctx>, is_mutable: bool) -> Result<(), CompilerError>{
-        let var_name = name.lexeme.as_str();
+    pub fn define(&mut self, name: &Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum<'ctx>, is_mutable: bool) -> Result<(), CompilerError>{
+        let var_name = name.lexeme.clone();
         if let Some(current_scope) = self.scope.last_mut() {
             let info = VariableInfo {pointer: pointer, ty:ty, is_mutable:is_mutable};
             current_scope.insert(var_name, info);
@@ -54,21 +54,21 @@ impl<'ctx> Environment <'ctx> {
     }
 
 
-    pub fn lookup(&mut self, name: &'ctx Token) -> Result<&VariableInfo<'ctx>, CompilerError> {
-        let var_name = name.lexeme.as_str();
+    pub fn lookup(&self, name: &Token) -> Result<&VariableInfo<'ctx>, CompilerError> {
+        let var_name = name.lexeme.clone();
         for current_scope in self.scope.iter().rev() {
-            if let Some(info) = current_scope.get(var_name) {
+            if let Some(info) = current_scope.get(&var_name) {
                 return Ok(info)
             }
         }
         return Err(CompilerError::UndefinedVariable(format!("Variable '{}' not found.", name.lexeme)))
     }
 
-    pub fn assign(&mut self, name: &'ctx Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum<'ctx>, is_mutable: bool) -> Result<(), CompilerError> {
+    pub fn assign(&mut self, name: &Token, pointer: PointerValue<'ctx>, ty: BasicTypeEnum<'ctx>, is_mutable: bool) -> Result<(), CompilerError> {
         let info = VariableInfo {pointer: pointer, ty:ty, is_mutable:is_mutable};
-        let var_name = name.lexeme.as_str();
+        let var_name = name.lexeme.clone();
         for current_scope in self.scope.iter_mut().rev() {
-            if current_scope.contains_key(var_name) {
+            if current_scope.contains_key(&var_name) {
                 current_scope.insert(var_name, info);
                 return Ok(())
             }
