@@ -1,11 +1,11 @@
-pub mod lox;
+pub mod core;
 pub mod ast_printer;
 use std::process;
-use crate::lox::Token;
-use crate::lox::TokenType;
-use crate::lox::scanner;
-use crate::lox::parser;
-use crate::lox::compiler;
+use crate::core::Token;
+use crate::core::TokenType;
+use crate::core::scanner;
+use crate::core::parser;
+use crate::core::compiler;
 
 
 #[derive (Debug, PartialEq)]

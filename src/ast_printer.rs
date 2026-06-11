@@ -1,4 +1,4 @@
-use crate::lox::Expr;
+use crate::core::Expr;
 
 
 pub fn print_ast(expr: &Expr) {

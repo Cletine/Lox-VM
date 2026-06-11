@@ -1,5 +1,5 @@
-use crate::lox::Token;
-use crate::lox::Object;
+use crate::core::Token;
+use crate::core::Object;
 
 
 #[derive (Debug, PartialEq, Clone)]

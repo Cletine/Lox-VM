@@ -1,6 +1,6 @@
-use crate::lox::Token;
-use crate::lox::TokenType;
-use crate::lox::Object;
+use crate::core::Token;
+use crate::core::TokenType;
+use crate::core::Object;
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use crate::scan_error;

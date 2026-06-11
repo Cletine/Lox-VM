@@ -7,16 +7,16 @@ use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 use inkwell::IntPredicate;
 use inkwell::AddressSpace;
-use crate::lox::Token;
-use crate::lox::TokenType;
-use crate::lox::Object;
-use crate::lox::Expr;
-use crate::lox::Statement;
-use crate::lox::StmtVisitor;
-use crate::lox::ExprVisitor;
+use crate::core::Token;
+use crate::core::TokenType;
+use crate::core::Object;
+use crate::core::Expr;
+use crate::core::Statement;
+use crate::core::StmtVisitor;
+use crate::core::ExprVisitor;
 use crate::CompilerError;
-use crate::lox::Environment;
-use crate::lox::VariableInfo;
+use crate::core::Environment;
+use crate::core::VariableInfo;
 
 
 pub struct CodeGen<'env, 'ctx> {

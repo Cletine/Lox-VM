@@ -1,8 +1,8 @@
-use crate::lox::Token;
-use crate::lox::TokenType;
-use crate::lox::Object;
-use crate::lox::Expr;
-use crate::lox::Statement;
+use crate::core::Token;
+use crate::core::TokenType;
+use crate::core::Object;
+use crate::core::Expr;
+use crate::core::Statement;
 use crate::ParserError;
 
 

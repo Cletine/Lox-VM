@@ -2,10 +2,10 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::process;
-use lox_interpreter::lox::LoxScanner;
-use lox_interpreter::lox::LoxParser;
-use lox_interpreter::lox::compiler::compile_program;
-use lox_interpreter::ast_printer::print_ast;
+use crate::core::LoxScanner;
+use crate::core::LoxParser;
+use crate::core::compiler::compile_program;
+use crate::ast_printer::print_ast;
 
 
 fn main() {

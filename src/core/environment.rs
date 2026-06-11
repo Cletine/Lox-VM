@@ -1,6 +1,6 @@
 use std::collections::HashMap; use inkwell::values::PointerValue;
 use inkwell::types::BasicTypeEnum;
-use crate::lox::Token;
+use crate::core::Token;
 use crate::CompilerError;
 
 
