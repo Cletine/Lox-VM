@@ -38,20 +38,20 @@ pub enum Expr {
     },
 }
 
-pub trait ExprVisitor<'a, R> {
-    fn visit_assign_expr(&mut self, name: &'a Token, value: &'a Expr) -> R;
-    fn visit_binary_expr(&mut self, left: &'a Expr, operator: &'a Token, right: &'a Expr) -> R;
-    fn visit_call_expr(&mut self, callee: &'a Expr, paren: &'a Token, arguments: &'a Vec<Box<Expr>>) -> R;
-    fn visit_grouping_expr(&mut self, expression: &'a Expr) -> R;
-    fn visit_literal_expr(&mut self, value: &'a Object) -> R;
-    fn visit_logical_expr(&mut self, left: &'a Expr, operator: &'a Token, right: &'a Expr) -> R;
-    fn visit_unary_expr(&mut self, operator: &'a Token, right: &'a Expr) -> R;
-    fn visit_variable_expr(&mut self, name: &'a Token) -> R;
+pub trait ExprVisitor<'ctx, R> {
+    fn visit_assign_expr(&mut self, name: &Token, value: &Expr) -> R;
+    fn visit_binary_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> R;
+    fn visit_call_expr(&mut self, callee: &Expr, paren: &Token, arguments: &Vec<Box<Expr>>) -> R;
+    fn visit_grouping_expr(&mut self, expression: &Expr) -> R;
+    fn visit_literal_expr(&mut self, value: &Object) -> R;
+    fn visit_logical_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> R;
+    fn visit_unary_expr(&mut self, operator: &Token, right: &Expr) -> R;
+    fn visit_variable_expr(&mut self, name: &Token) -> R;
 }
 
 
 impl Expr {
-    pub fn accept<'a, R>(&'a self, visitor: &'a mut impl ExprVisitor<'a, R>) -> R {
+    pub fn accept<'ctx, R> (&self, visitor: &mut impl ExprVisitor<'ctx, R>) -> R {
         match self {
             Expr::Assign { name, value } => visitor.visit_assign_expr(name, value),
             Expr::Binary { left, operator, right } => visitor.visit_binary_expr(left, operator, right),
@@ -99,18 +99,18 @@ pub enum Statement{
     },
 }
 
-pub trait StmtVisitor<'a, R> {
-    fn visit_block_stmt(&mut self, statements: &'a Vec<Box<Statement>>) -> R;
-    fn visit_expr_stmt(&mut self, expression: &'a Expr) -> R;
-    fn visit_function_stmt(&mut self, name: &'a Token, arguments: &'a Vec<Box<Expr>>, body: &'a Vec<Box<Statement>>) -> R;
-    fn visit_if_stmt(&mut self, condition: &'a Expr, then_branch: &'a Statement, else_branch: &'a Option<Statement>) -> R;
-    fn visit_return_stmt(&mut self, keyword: &'a Token, value: &'a Expr) -> R;
-    fn visit_while_stmt(&mut self, condition: &'a Expr, body: &'a Statement) -> R;
-    fn visit_var_stmt(&mut self, name: &'a Token, initializer: &'a Expr) -> R;
+pub trait StmtVisitor<'ctx, R> {
+    fn visit_block_stmt(&mut self, statements: &Vec<Box<Statement>>) -> R;
+    fn visit_expr_stmt(&mut self, expression: &Expr) -> R;
+    fn visit_function_stmt(&mut self, name: &Token, arguments: &Vec<Box<Expr>>, body: &Vec<Box<Statement>>) -> R;
+    fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Statement, else_branch: &Option<Statement>) -> R;
+    fn visit_return_stmt(&mut self, keyword: &Token, value: &Expr) -> R;
+    fn visit_while_stmt(&mut self, condition: &Expr, body: &Statement) -> R;
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> R;
 }
 
 impl Statement {
-    pub fn accept<'a, R>(&'a self, visitor: &mut impl StmtVisitor<'a, R>) -> R {
+    pub fn accept<'ctx, R>(&self, visitor: &mut impl StmtVisitor<'ctx, R>) -> R {
         match self {
             Statement::Block { statements } => visitor.visit_block_stmt(statements),
             Statement::ExprStatement { expression } => visitor.visit_expr_stmt(expression),
