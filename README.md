@@ -1,6 +1,6 @@
-#  Lox Programming Language — Rust
+#  L-3 Programming Language — Rust
 
-> A fully-featured bytecode VM for the **Lox** programming language, built from scratch in Rust.
+> A fully-featured bytecode VM for the **L-3** programming language, built from scratch in Rust.
 > Inspired by Robert Nystrom's [*Crafting Interpreters*](https://craftinginterpreters.com/).
 
 [![Rust](https://img.shields.io/badge/Rust-1.78%2B-orange?logo=rust)](https://www.rust-lang.org/)
@@ -10,7 +10,7 @@
 
 ##  Overview
 
-This project is a handcrafted implementation of the **Lox** scripting language in Rust. Lox is a dynamically-typed, object-oriented language designed by Robert Nystrom that with the LLVM project reference, acts as a teaching vehicle for programming language/Virtual Machine design. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, Optimized Bytecode.
+This project is a handcrafted implementation of the **L-3** scripting language in Rust. L-3 is a dynamically-typed, scripting language heavily inspired by the lox programming language designed by Robert Nystrom. The following implementation focuses on a Modern Bytecode-VM approach to compiler design, which constructs an Abstract Syntax Tree and uses it to generate a Bytecode IR. This implementation covers the full pipeline from raw source text to evaluated output — scanner, parser, AST, Optimized Bytecode.
 
 ---
 
@@ -58,6 +58,10 @@ Targeted Binary
 - Structured error handling and panic-mode recovery
 - Generates a complete, well-formed Abstract Syntax Tree (AST)
 
+### Compiler
+- Generates LLVM IR ByteCode using AST's 
+- Manages Variable Environments and Scopes
+- Meaningful Compiler-level error messaging and handling
 
 ## Roadmap
 
@@ -72,9 +76,11 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Variables & Environments | ✅ Complete  |
 | Control Flow (`if`, `while`, `for`) parsing | ✅ Complete |
 | Functions & Closure parsing| ✅ Complete  |
-| Classes & Inheritance | 🔜 TBD |
 | Compiler (LLVM IR) | 🔜 Planned |
 | JIT Compilation (Native Binary) | 🔜 Planned |
+| Garbage Collection | 🔜 TBD |
+| Classes & Inheritance | 🔜 TBD |
+| Standard Library | 🔜 TBD |
 
 ---
 
@@ -131,7 +137,7 @@ if (a < b) {
 ##  Design Decisions
 
 **Why Rust?**
-Rust's ownership model makes it exceptionally well-suited for compiler toolchain development. Memory safety is guaranteed at compile time, and the type system enforces correctness across complex recursive data structures like ASTs — without a garbage collector. Rust also allows for functional programming features such as Algebraic Data Types with Structs and Enums as well as powerful pattern matching which makes the construction of complex intermediary types simpler to implement and allows for simpler data decomposition with specificity to shape. This allows for the Compiler Frontend to have a rudimentary (and hopefully intuitive) implementation.
+Rust's ownership model makes it exceptionally well-suited for compiler toolchain development. Memory safety is guaranteed at compile time, and the type system enforces correctness across complex recursive data structures like ASTs — without a garbage collector. Rust also allows for functional programming features such as Algebraic Data Types with Structs and Enums as well as powerful pattern matching which makes the construction of complex intermediary types simpler to implement and allows for simpler data decomposition with specificity to shape. This allows for the Compiler Frontend to have a rudimentary (and hopefully intuitive) implementation and for the Compiler back-end to easily deconstruct and translate our AST's to LLVM IR.
 
 
 ---
