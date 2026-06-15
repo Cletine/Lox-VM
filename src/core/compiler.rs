@@ -5,6 +5,7 @@ use inkwell::values::BasicValueEnum;
 use inkwell::values::FloatValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
+use inkwell::values::FunctionValue;
 use inkwell::IntPredicate;
 use inkwell::AddressSpace;
 use crate::core::Token;
@@ -23,7 +24,8 @@ pub struct CodeGen<'env, 'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    pub environment: &'env Environment<'ctx>,
+    pub environment: &'env mut Environment<'ctx>,
+    pub fn_value_opt: Option<FunctionValue<'ctx>>,
     // also eventually put symbol table/scopes here
 }
 
@@ -37,18 +39,84 @@ enum OpValues<'ctx> {
 impl<'env, 'ctx> StmtVisitor<'ctx, Result<(), CompilerError>> for CodeGen<'env, 'ctx> {
     // Implement statement compilation methods here (e.g., generating functions, blocks)
     // Most statement implementations will return Ok(()) as they emit instructions into the blocks
+    
     fn visit_block_stmt(&mut self, statements: &Vec<Box<Statement>>) -> Result<(), CompilerError> {
-        todo!()
+        self.environment.enter_scope(); 
+        for stmt in statements {
+            // Dispatch the statement to the visitor framework
+            stmt.accept(self)?;
+        }
+        self.environment.exit_scope();
+        Ok(())
     }
 
     fn visit_expr_stmt(&mut self, expression: &Expr) -> Result<(), CompilerError>  {
-        todo!()
+        expression.accept(self)?;
+        Ok(())
     }
+
     fn visit_function_stmt(&mut self, name: &Token, arguments: &Vec<Box<Expr>>, body: &Vec<Box<Statement>>) -> Result<(), CompilerError> {
         todo!()
     }
+
     fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Statement, else_branch: &Option<Statement>) -> Result<(), CompilerError> {
-        todo!()
+        let parent = self.fn_value_opt.unwrap();
+        let zero_const = self.context.f64_type().const_float(0.0);
+
+        let cond_expr = condition.accept(self)?;
+        let cond = self.is_truthy(cond_expr)?;
+
+        // build branch
+        let then_bb = self.context.append_basic_block(parent, "then");
+        let cont_bb = self.context.append_basic_block(parent, "ifcont");
+
+        let else_bb = if else_branch.is_some() {
+            Some(self.context.append_basic_block(parent, "else"))
+        }
+        else {
+            None
+        };
+
+        // Branch to 'else_bb' if it exists, otherwise branch directly to 'cont_bb'
+        let false_target = else_bb.unwrap_or(cont_bb);
+        self.builder.build_conditional_branch(cond, then_bb, false_target)
+            .map_err(|_| CompilerError::LLVMError("Failed to build branch conditional".to_string()))?;
+
+
+        // build then block
+        self.builder.position_at_end(then_bb);
+        then_branch.accept(self)?;
+
+        // get the final block that the builder ended up in (in the event of nested scopes)
+        let final_then_bb = self.builder.get_insert_block()
+            .ok_or_else(|| CompilerError::LLVMError("Failed to get most relevant insert block".to_string()))?;
+
+            // Only emit a branch to continuation if the block doesn't already terminate (e.g., via a return)
+            if final_then_bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(cont_bb)            
+                    .map_err(|_| CompilerError::LLVMError("Failed to build branch conditional".to_string()))?;
+            }
+
+
+        // build else block (if it exists)
+        if let Some(actual_else_bb) = else_bb {
+            if let Some(actual_else_stmt) = else_branch {
+                self.builder.position_at_end(actual_else_bb);
+                actual_else_stmt.accept(self)?;
+
+                // get the final block that the builder ended up in (in the event of nested scopes)
+                let final_else_bb = self.builder.get_insert_block()
+                    .ok_or_else(|| CompilerError::LLVMError("Failed to get most relevant insert block".to_string()))?;
+
+                    if final_else_bb.get_terminator().is_none() {
+                        self.builder.build_unconditional_branch(cont_bb)            
+                            .map_err(|_| CompilerError::LLVMError("Failed to build branch conditional".to_string()))?;
+                    }
+            }
+        }
+        self.builder.position_at_end(cont_bb);
+
+        Ok(())
     }
 
     fn visit_return_stmt(&mut self, keyword: &Token, value: &Expr) -> Result<(), CompilerError> {
@@ -56,11 +124,68 @@ impl<'env, 'ctx> StmtVisitor<'ctx, Result<(), CompilerError>> for CodeGen<'env, 
     }
 
     fn visit_while_stmt(&mut self, condition: &Expr, body: &Statement) -> Result<(), CompilerError> {
-        todo!()
+        let parent = self.fn_value_opt.ok_or_else(|| {
+            CompilerError::LLVMError("No active function context for while loop".to_string())
+        })?;
+
+        // initialize the three required branches
+        let cond_bb = self.context.append_basic_block(parent, "while_cond");
+        let body_bb = self.context.append_basic_block(parent, "while_body");
+        let after_bb = self.context.append_basic_block(parent, "while_after");
+
+        self.builder.build_unconditional_branch(cond_bb)
+            .map_err(|_| CompilerError::LLVMError("Failed to branch to while conditional".to_string()))?;
+
+        // build while condition block and evaluate conditional truthyness
+        self.builder.position_at_end(cond_bb);
+        let cond_expr = condition.accept(self)?;
+        let cond_truthy = self.is_truthy(cond_expr)?;
+
+        self.builder.build_conditional_branch(cond_truthy, body_bb, after_bb)
+            .map_err(|_| CompilerError::LLVMError("Failed to build while conditional".to_string()))?;
+
+        // build while body block
+        self.builder.position_at_end(body_bb);
+        body.accept(self)?;
+
+        // get the final block that the builder ended up in (in the event of nested scopes)
+        let final_body_bb = self.builder.get_insert_block()
+            .ok_or_else(|| CompilerError::LLVMError("Failed to get most relevant insert block".to_string()))?;
+
+        // Recursively jump back to the loop condition and execute the loop body
+        if final_body_bb.get_terminator().is_none() {
+            self.builder.build_unconditional_branch(cond_bb)            
+                .map_err(|_| CompilerError::LLVMError("Failed to build branch conditional".to_string()))?;
+        }
+
+        self.builder.position_at_end(after_bb);
+
+        Ok(())
+
     }
 
     fn visit_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), CompilerError> {
-        todo!()
+
+        let value = if matches!(initializer, Expr::Literal {value: Object::NULL, }) {
+            self.literal_null_expr_node()?
+        }
+        else {
+            initializer.accept(self)?
+        };
+
+        let basic_type = value.get_type();
+        // Should store the variable into the context here
+        let var_name = name.lexeme.as_str();
+
+        let pointer = self.builder.build_alloca(basic_type, var_name)
+            .map_err(|_| CompilerError::LLVMError("Stack Allocation failed".to_string()))?;
+
+        self.builder.build_store(pointer, value)
+            .map_err(|_| CompilerError::LLVMError("Failed to store initial value".to_string()))?;
+        // and then stores the variable info in the environemnt here 
+        self.environment.define(name, pointer, basic_type, true);
+
+        Ok(())
     }
 }
 
@@ -68,7 +193,6 @@ impl<'env, 'ctx> ExprVisitor<'ctx, Result<inkwell::values::BasicValueEnum<'ctx>,
     // Implement expression compilation methods here
     // Most expressions will return Ok(BasicValueEnum) representing the computed LLVM value
     
-
 
     fn visit_call_expr(&mut self, callee: &Expr, paren: &Token, arguments: &Vec<Box<Expr>>) -> Result<BasicValueEnum<'ctx>, CompilerError>{
         todo!()
@@ -78,13 +202,72 @@ impl<'env, 'ctx> ExprVisitor<'ctx, Result<inkwell::values::BasicValueEnum<'ctx>,
 
 
     fn visit_logical_expr(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<BasicValueEnum<'ctx>, CompilerError>{
-        todo!()
+        let parent = self.fn_value_opt.ok_or_else(|| CompilerError::LLVMError("No active function context".to_string()))?;
+
+        let left_val = left.accept(self)?;
+        let left_truthy = self.is_truthy(left_val)?;
+
+        let right_bb = self.context.append_basic_block(parent, "logical_right");
+        let merge_bb = self.context.append_basic_block(parent, "logical_merge");
+
+        let initial_bb = self.builder.get_insert_block()
+            .ok_or_else(|| CompilerError::LLVMError("Failed to get most relevant insert block".to_string()))?;
+
+
+        if operator.token_type == TokenType::OR {
+            // OR operation 
+            // If lhs is truthy, bypass rhs eval and go straight to merge
+            self.builder.build_conditional_branch(left_truthy, merge_bb, right_bb)
+                .map_err(|_| CompilerError::LLVMError("Failed to build OR branch".to_string()))?;
+        }
+        else {
+            // AND operation 
+            // if lhs is falsy, bypass rhs and go straight to merge 
+            self.builder.build_conditional_branch(left_truthy, right_bb, merge_bb)
+                .map_err(|_| CompilerError::LLVMError("Failed to build AND branch".to_string()))?;
+        }
+
+        self.builder.position_at_end(right_bb);
+        let right_val = right.accept(self)?;
+
+        let final_right_bb = self.builder.get_insert_block()
+            .ok_or_else(|| CompilerError::LLVMError("Failed to get most relevant RHS insert block".to_string()))?;
+
+        if final_right_bb.get_terminator().is_none() {
+            self.builder.build_unconditional_branch(merge_bb)            
+                .map_err(|_| CompilerError::LLVMError("Failed to build merge branch".to_string()))?;
+        }
+
+        self.builder.position_at_end(merge_bb);
+
+        let phi = self.builder.build_phi(left_val.get_type(), "logical_res")
+                .map_err(|_| CompilerError::LLVMError("Failed to build PHI node".to_string()))?;
+
+        phi.add_incoming(&[
+            (&left_val, initial_bb),
+            (&right_val, final_right_bb)
+        ]);
+
+        return Ok(phi.as_basic_value())
+
     }
 
 
-
     fn visit_assign_expr(&mut self, name: &Token, value: &Expr) -> Result<BasicValueEnum<'ctx>, CompilerError>{
-        todo!()
+        let assign_value = value.accept(self)?;
+        // Should store the variable into the context here
+        let basic_type = assign_value.get_type();
+        let var_name = name.lexeme.as_str();
+
+        let var_pointer = self.environment.lookup(name)?.pointer;
+
+        self.builder.build_store(var_pointer, assign_value)
+            .map_err(|_| CompilerError::LLVMError("Failed to store initial value".to_string()))?;
+
+        self.environment.assign(name, var_pointer, basic_type , true)?;
+
+        // Should assign return anything?
+        return Ok(assign_value)
     }
 
     fn visit_variable_expr(&mut self, name: &Token) -> Result<BasicValueEnum<'ctx>, CompilerError>{
@@ -347,6 +530,38 @@ impl <'env, 'ctx> CodeGen<'env, 'ctx> {
         let basic_value: BasicValueEnum<'ctx> = global_string_ptr.as_pointer_value().into();
         return Ok(basic_value)
     }
+
+    fn is_truthy(&mut self, value:BasicValueEnum<'ctx>) -> Result<IntValue<'ctx>, CompilerError> {
+        match value {
+            BasicValueEnum::IntValue(int_val) => {
+                let zero = int_val.get_type().const_int(0, false);
+                // Returns true if int_val != 0
+                let is_true = self.builder.build_int_compare(inkwell::IntPredicate::NE, int_val, zero, "int_truthy")
+                    .map_err(|_| CompilerError::LLVMError("Failed to build int truthy comparison".to_string()))?;
+                Ok(is_true)
+            },
+
+            BasicValueEnum::FloatValue(float_val) => {
+                let zero = float_val.get_type().const_float(0.0);
+                // Returns true if float_val != 0.0 (Ordered Not Equal)
+                let is_true = self.builder.build_float_compare(inkwell::FloatPredicate::ONE, float_val, zero, "float_truthy")
+                    .map_err(|_| CompilerError::LLVMError("Failed to build float truthy comparison".to_string()))?;
+                Ok(is_true)
+            },
+
+            BasicValueEnum::PointerValue(ptr_val) => {
+                // Create a null pointer constant of the exact same pointer type to compare against
+                let null_ptr = ptr_val.get_type().const_null();
+
+                // Returns true if ptr_val != null
+                let is_true = self.builder.build_int_compare(inkwell::IntPredicate::NE, ptr_val, null_ptr, "ptr_truthy")
+                    .map_err(|_| CompilerError::LLVMError("Failed to build pointer truthy comparison".to_string()))?;
+                Ok(is_true)
+            },
+
+            _ => Err(CompilerError::LLVMError("This type cannot be evaluated for truthiness".to_string())),
+        }    
+    }
 }
 
 
@@ -354,14 +569,23 @@ pub fn compile_program(program: &Vec<Statement>, file: &str) -> Result<(), Compi
     let context = Context::create();
     let module = context.create_module(file);
     let builder = context.create_builder();
-    let environment = Environment::new();
+    let mut environment = Environment::new();
+
+    // The global context "main"
+    let init_global_type = context.i32_type().fn_type(&[], false);
+    let init_global_fn = module.add_function("__init_global", init_global_type, None);
+
+    // entry point block for the LLVM program
+    let entry_bb = context.append_basic_block(init_global_fn, "entry");
+    builder.position_at_end(entry_bb);
 
     // Instantiate your code generator pass
     let mut codegen = CodeGen {
         context: &context,
         module,
         builder,
-        environment: &environment,
+        environment: &mut environment,
+        fn_value_opt: Some(init_global_fn),
     };
 
     // Process the list of statements sequentially
