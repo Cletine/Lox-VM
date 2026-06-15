@@ -78,6 +78,7 @@ This interpreter is actively being developed. Upcoming milestones include:
 | Functions & Closure parsing| ✅ Complete  |
 | Compiler (LLVM IR) | 🔜 Planned |
 | JIT Compilation (Native Binary) | 🔜 Planned |
+| Static Type Checking | 🔜 Planned |
 | Garbage Collection | 🔜 TBD |
 | Classes & Inheritance | 🔜 TBD |
 | Standard Library | 🔜 TBD |
